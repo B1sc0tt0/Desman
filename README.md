@@ -1,24 +1,23 @@
 # Desman
 
 ```
-        ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋
-       ≋                                                  ≋
-      ≋            D · E · S · M · A · N                  ≋
-       ≋       local AI · connects the unconnected       ≋
-        ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋
+  ╭──────────────────────────────────────────────────────────╮
+  │                                                          │
+  │             D  ·  E  ·  S  ·  M  ·  A  ·  N            │
+  │        local AI agent · connects the unconnected        │
+  │                                                          │
+  ╰──────────────────────────────────────────────────────────╯
 
-  ┌─ your machine ─────────────────────────────────────────────┐
-  │                                                            │
-  │  ┌────────────┐  ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋  ┌─────────────┐ │
-  │  │   OLLAMA   │ ≋          .-.          ≋ │ MCP SERVERS │ │
-  │  │            │≋≋         (o·o)══════════▶│             │ │
-  │  │  llama3    │ ≋≋         ) (          ≋ │◉ freshdesk  │ │
-  │  │  qwen2.5   │  ≋≋      /_|_\        ≋≋  │◉ freshsvc   │ │
-  │  │  + more    │   ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋ ≋  │◉ your app   │ │
-  │  └────────────┘                           └─────────────┘ │
-  │                                                            │
-  │           no cloud  ·  no lock-in  ·  no leaks            │
-  └────────────────────────────────────────────────────────────┘
+    OLLAMA                                        MCP SERVERS
+  ┌──────────┐≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈┌─────────────┐
+  │          │≈≈                             ≈≈│             │
+  │  llama3  │≈≈   ╭──────────╮              ≈≈│ ◉ freshdesk │
+  │  qwen2.5 │≈────(  ·  o  · )════════════════│ ◉ freshsvc  │
+  │  mistral │≈≈   ╰──────────╯              ≈≈│ ◉ your app  │
+  │  + more  │≈≈                             ≈≈│             │
+  └──────────┘≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈≈└─────────────┘
+
+              your machine  ·  no cloud  ·  no leaks
 ```
 
 Local, private, open-source AI agent. Connects on-device LLMs (via Ollama) to business applications via MCP servers. No cloud subscription. No vendor lock-in. No data leaves the machine.
