@@ -1,0 +1,89 @@
+# Desman configuration
+# Copy this to config.local.yaml and fill in your values.
+# config.local.yaml is gitignored — never commit it.
+
+agent:
+  # System prompt — controls the agent's behaviour, scope, and tone.
+  # Keep it short and explicit. Smaller models (3B–8B) work best with
+  # a direct, minimal prompt rather than a long one.
+  system_prompt: |
+    You are a helpful IT support assistant with access to Freshservice and Freshdesk.
+    Always confirm actions before executing them. Be concise.
+
+  # Default model shown on first load.
+  # The user can change the model at any time in the UI.
+  # Must be pulled locally via Ollama — models not installed are excluded automatically.
+  default_model: "llama3.2:3b"
+
+  # Agent loop behaviour
+  max_iterations: 10
+  temperature: 0.3
+
+ollama:
+  base_url: "http://localhost:11434"
+
+# MCP servers — one entry per application to connect.
+# Each server lives in mcp_servers/<folder>/ relative to the Desman root.
+# Credentials go in mcp_servers/<folder>/.env — never in this file.
+#
+# To add a new application:
+#   1. Create mcp_servers/<folder>/
+#   2. Add the server script and a .env with the app's credentials
+#   3. Add an entry here with the folder name and script filename
+#   4. Add any required dependencies to pyproject.toml and reinstall
+mcp_servers:
+  - name: "freshservice"
+    folder: "freshservice"
+    script: "freshservice_server.py"
+    enabled: true
+
+  - name: "freshdesk"
+    folder: "freshdesk"
+    script: "freshdesk_server.py"
+    enabled: true
+
+  # Future examples — uncomment and add server files to enable:
+  # - name: "jira"
+  #   folder: "jira"
+  #   script: "jira_server.py"
+  #   enabled: false
+
+  # - name: "personio"
+  #   folder: "personio"
+  #   script: "personio_server.py"
+  #   enabled: false
+
+# Model list — defines which models appear in the UI picker.
+# Only models that are also installed locally via Ollama will be shown.
+# The user selects the active model at runtime — this list is a starting point.
+#
+# Hardware guidance:
+#   Raspberry Pi 5 (8 GB) → 3B models only
+#   MacBook Air M1 16 GB  → up to 8B comfortable
+#   Mac Mini M4           → up to 13B fine, 30B feasible
+#
+# Pull a model: ollama pull <ollama_model>
+models:
+  - display_name: "Fast (3B) — Llama 3.2"
+    ollama_model: "llama3.2:3b"
+    description: "Quick responses, low memory. Recommended for Pi and constrained laptops."
+
+  - display_name: "Balanced (8B) — Llama 3.1"
+    ollama_model: "llama3.1:8b"
+    description: "Best quality/speed tradeoff for 16 GB machines."
+
+  - display_name: "Reasoning (7B) — Mistral"
+    ollama_model: "mistral:7b"
+    description: "Strong on structured tasks and tool calls."
+
+  - display_name: "Efficient (3B) — Liquid LFM"
+    ollama_model: "liquid/lfm-3b"
+    description: "Liquid AI architecture. Fast, worth evaluating on constrained hardware."
+
+  - display_name: "Liquid (7B) — Liquid LFM"
+    ollama_model: "liquid/lfm-7b"
+    description: "Better quality Liquid model, still safe for M1 16 GB."
+
+  - display_name: "Code & Tools (7B) — Qwen2.5"
+    ollama_model: "qwen2.5:7b"
+    description: "Strong at structured output and tool call formatting."

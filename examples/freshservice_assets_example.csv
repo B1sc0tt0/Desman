@@ -1,0 +1,9 @@
+name,asset_type_name,asset_state,product_name,asset_tag
+MacBook-Alice-001,Laptop,In Use,Apple MacBook Air 13,ASSET-001
+MacBook-Bob-002,Laptop,In Use,Apple MacBook Pro 14,ASSET-002
+Dell-Finance-003,Desktop,In Use,Dell OptiPlex 7090,ASSET-003
+Monitor-Carol-004,Monitor,In Use,Dell UltraSharp 27,ASSET-004
+iPhone-David-005,Mobile,In Use,Apple iPhone 14 Pro,ASSET-005
+HP-Printer-006,Printer,In Stock,HP LaserJet Pro M404,ASSET-006
+MacBook-Spare-007,Laptop,In Stock,Apple MacBook Air 13,ASSET-007
+iPad-Meeting-008,Tablet,In Use,Apple iPad Pro 12.9,ASSET-008

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+*.so
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Credentials — never commit
+mcp_servers/**/.env
+config/config.local.yaml
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local settings
+.claude/

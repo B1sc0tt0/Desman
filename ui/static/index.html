@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desman</title>
+<link rel="icon" type="image/png" href="/static/desman-logo.png">
+<!-- Apply theme before paint to prevent FOUC -->
+<script>(function(){var t=localStorage.getItem('desman-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.dataset.theme='dark';}})()</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/* ── Design tokens ────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  /* OKLCH palette — derived from logo PNG */
+  --cream:      oklch(92% 0.018 75);   /* logo background, primary surface */
+  --cream-dim:  oklch(88% 0.022 75);   /* slightly deeper for hover/active */
+  --paper:      oklch(96% 0.010 75);   /* inputs, elevated surfaces */
+  --charcoal:   oklch(18% 0.015 260);  /* topbar, user bubbles */
+  --ink:        oklch(24% 0.014 75);   /* primary text */
+  --muted:      oklch(52% 0.012 75);   /* secondary text */
+  --subtle:     oklch(68% 0.010 75);   /* tertiary, placeholders */
+  --border:     oklch(83% 0.016 75);   /* dividers */
+  --border-dim: oklch(78% 0.018 75);   /* stronger borders */
+
+  --red:              oklch(54% 0.24 22);    /* logo red pixel — Freshdesk accent */
+  --red-dim:          oklch(93% 0.05 22);    /* red tint for Freshdesk tool chips */
+  --blue:             oklch(50% 0.22 255);   /* logo blue pixel — Freshservice action */
+  --blue-dim:         oklch(84% 0.08 255);   /* blue tint for Freshservice tool chips */
+  --green:            oklch(54% 0.18 152);   /* success state text */
+  --green-connected:  oklch(74% 0.22 152);   /* live server indicator dot/toggle */
+  --amber:            oklch(72% 0.20 68);    /* connecting/warning state */
+
+  /* Spacing — 4pt system */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* Type */
+  --font-ui:    "Outfit", system-ui, sans-serif;
+  --font-pixel: "Press Start 2P", ui-monospace, monospace;
+  --font-mono:  "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-fast: 120ms;
+  --dur-mid:  240ms;
+
+  --radius: 6px;
+  --shadow-sm: 0 1px 3px oklch(18% 0.015 260 / 0.08), 0 4px 12px oklch(18% 0.015 260 / 0.05);
+}
+
+/* ── Reset ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--cream);
+  color: var(--ink);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Graph-paper grid — reinforces "precision instrument" aesthetic */
+  background-image:
+    linear-gradient(oklch(78% 0.020 75 / 0.65) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(78% 0.020 75 / 0.65) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Focus rings ──────────────────────────────────────────────── */
+:focus { outline: none; }
+:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ── Topbar ───────────────────────────────────────────────────── */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-5);
+  height: 64px;
+  /* Always dark — hardware panel aesthetic, independent of page theme */
+  background: oklch(13% 0.015 260);
+  border-bottom: 2px solid var(--red);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  /* CRT scanlines — visible on dark bg */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      oklch(0% 0 0 / 0.28) 2px,
+      oklch(0% 0 0 / 0.28) 3px
+    );
+}
+
+.logo-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  text-decoration: none;
+}
+.logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: contain;
+  /* no background needed — logo already on cream */
+  flex-shrink: 0;
+}
+.logo-wordmark {
+  font-family: var(--font-pixel);
+  font-size: 14px;           /* Press Start 2P renders large — keep compact */
+  color: oklch(92% 0.010 75); /* fixed cream — always light on dark topbar */
+  line-height: 1;
+  letter-spacing: 0.05em;
+  image-rendering: pixelated; /* keep pixel edges crisp */
+}
+.logo-tagline {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  color: oklch(48% 0.010 260); /* fixed mid — always light on dark topbar */
+  letter-spacing: 0.06em;
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+/* Blinking cursor after the tagline — classic C64 READY. prompt */
+.logo-tagline::after {
+  content: '█';
+  animation: blink-dot 0.9s step-end infinite;
+  margin-left: 2px;
+  color: var(--red);
+}
+
+/* Topbar divider */
+.topbar-sep {
+  width: 1px;
+  height: 20px;
+  background: oklch(28% 0.013 260); /* fixed dark — always visible on dark topbar */
+  margin: 0 var(--sp-2);
+}
+
+/* Server status pills */
+#server-pills { display: flex; gap: var(--sp-3); }
+.s-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: oklch(50% 0.010 260); /* fixed mid — always visible on dark topbar */
+  letter-spacing: 0.04em;
+  font-family: var(--font-pixel);
+}
+.s-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border-dim);
+}
+.s-dot.connected  { background: var(--green-connected); }
+.s-dot.error      { background: var(--red); }
+.s-dot.connecting { background: var(--amber); animation: blink-dot 1.2s ease-in-out infinite; }
+.s-dot.disabled   { background: var(--border-dim); }
+/* Ignored server pill: strikethrough only — no opacity (preserves contrast ratio) */
+.s-pill.ignored       { color: var(--muted); }
+.s-pill.ignored s     { text-decoration-color: var(--muted); }
+
+@keyframes blink-dot { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
+
+#topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+#total-tools {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: oklch(40% 0.010 260); /* fixed — always visible on dark topbar */
+}
+
+/* ── Tab nav ──────────────────────────────────────────────────── */
+#tabs {
+  display: flex;
+  background: var(--cream-dim);
+  border-bottom: 1px solid var(--border-dim);
+  padding: 0 var(--sp-4);
+  flex-shrink: 0;
+}
+.tab-btn {
+  padding: var(--sp-3) var(--sp-5);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  color: var(--subtle);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.tab-btn:hover  { color: var(--muted); }
+.tab-btn:active { color: var(--ink); opacity: 0.7; }
+.tab-btn.active { color: var(--ink); border-bottom-color: var(--red); }
+
+/* ── Main grid ────────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Panels ───────────────────────────────────────────────────── */
+.panel { display: none; flex-direction: column; overflow: hidden; min-height: 0; }
+.panel.active { display: flex; }
+
+/* ── Chat panel ───────────────────────────────────────────────── */
+#panel-chat {
+  border-right: 1px solid var(--border);
+  background: var(--cream);
+  background-image: inherit;
+}
+
+/* Model bar */
+#model-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--paper);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#model-bar label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#model-select {
+  flex: 1;
+  padding: 5px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--cream);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+#model-select:focus-visible { border-color: var(--blue); outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--blue) 20%, transparent); }
+
+/* Messages */
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-6) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  scroll-behavior: smooth;
+}
+
+.msg { display: flex; flex-direction: column; gap: var(--sp-1); animation: msg-in 320ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg { animation-duration: 0ms; }
+  @keyframes msg-in { from { opacity: 0; } to { opacity: 1; } }
+}
+
+.msg.user  { align-self: flex-end;   align-items: flex-end;   max-width: 78%; }
+.msg.assistant { align-self: flex-start; align-items: flex-start; max-width: 82%; }
+
+.msg-role {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--subtle);
+  padding: 0 var(--sp-1);
+}
+
+/* User bubble: charcoal */
+.msg.user .msg-bubble {
+  background: var(--charcoal);
+  color: var(--cream);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  border-bottom-right-radius: 2px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Assistant: field-journal style — left rule, no card */
+.msg.assistant .msg-bubble {
+  border-left: 4px solid var(--blue);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+}
+
+/* Tool call row */
+.tool-call-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  animation: tool-scan 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes tool-scan {
+  from { opacity: 0; transform: translateX(-8px); background: color-mix(in oklch, var(--blue) 14%, transparent); }
+  35%  { background: color-mix(in oklch, var(--blue) 6%, transparent); }
+  to   { opacity: 1; transform: translateX(0);   background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tool-call-row { animation-duration: 0ms; }
+}
+.tool-call-row .tc-bar {
+  width: 4px;
+  align-self: stretch;
+  background: var(--blue-dim);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.tool-call-row .tc-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tool-call-row .tc-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+/* Cursor blink during streaming */
+.streaming::after {
+  content: '▍';
+  animation: cur 0.65s step-end infinite;
+  color: var(--blue);
+  font-size: 13px;
+  margin-left: 1px;
+}
+@keyframes cur { 0%,100% { opacity:1 } 50% { opacity:0 } }
+@media (prefers-reduced-motion: reduce) { .streaming::after { animation: none; } }
+
+/* Input area */
+#input-bar {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--paper);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#chat-input {
+  flex: 1;
+  padding: 10px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: var(--font-ui);
+  resize: none;
+  height: 42px;
+  max-height: 130px;
+  background: var(--cream);
+  color: var(--ink);
+  transition: border-color var(--dur-fast) var(--ease-out);
+  overflow-y: auto;
+  line-height: 1.5;
+}
+#chat-input::placeholder { color: var(--subtle); }
+#chat-input:focus-visible { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px color-mix(in oklch, var(--blue) 18%, transparent); }
+
+#send-btn {
+  padding: 0 var(--sp-6);
+  height: 42px;
+  background: var(--red);
+  color: oklch(98% 0.005 75);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 8px oklch(54% 0.24 22 / 0.35);
+}
+#send-btn:hover:not(:disabled) { background: oklch(46% 0.26 20); transform: translateY(-2px); box-shadow: 0 4px 16px oklch(54% 0.24 22 / 0.45); }
+#send-btn:active:not(:disabled) { background: oklch(42% 0.24 22); transform: translateY(0); box-shadow: 0 1px 4px oklch(54% 0.24 22 / 0.30); }
+#send-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+
+/* ── Sidebar ──────────────────────────────────────────────────── */
+#sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sb-section { display: flex; flex-direction: column; }
+.sb-section:not(:last-child) { border-bottom: 1px solid var(--border); }
+.sb-section.grow { flex: 1; overflow: hidden; }
+
+.sb-head {
+  padding: var(--sp-3) var(--sp-4) var(--sp-3);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 2px solid var(--border-dim);
+  border-left: 3px solid var(--red);
+  padding-left: var(--sp-3);
+}
+
+/* MCP server list */
+#mcp-list { padding: var(--sp-2); display: flex; flex-direction: column; gap: 2px; }
+.mcp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: 4px;
+}
+.mcp-row .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mcp-row .dot.connected  { background: var(--green-connected); }
+.mcp-row .dot.error      { background: var(--red); }
+.mcp-row .dot.connecting { background: var(--amber); animation: blink-dot 1.2s infinite; }
+.mcp-row .dot.disabled   { background: var(--border-dim); }
+.mcp-row .mcp-name { font-size: 12px; font-weight: 600; color: var(--ink); flex: 1; transition: color var(--dur-fast) var(--ease-out); }
+.mcp-row .mcp-count { font-size: 10px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+
+/* Server toggle */
+.server-toggle {
+  position: relative;
+  width: 26px;
+  height: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  background: var(--border-dim);
+  border-radius: 7px;
+  border: none;
+  padding: 0;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.server-toggle::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: oklch(98% 0.005 75);
+  top: 3px;
+  left: 3px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.server-toggle.on { background: var(--green-connected); }
+.server-toggle.on::after { transform: translateX(12px); }
+
+/* Ignored row — dot stays as real status; name/count shift to quieter tokens */
+.mcp-row.ignored .mcp-name  { color: var(--subtle); text-decoration: line-through; text-decoration-color: var(--subtle); }
+.mcp-row.ignored .mcp-count { color: var(--subtle); }
+
+/* Tool list collapsible */
+.mcp-block { display: flex; flex-direction: column; }
+.mcp-chevron {
+  background: none; border: none; padding: 0 2px; cursor: pointer;
+  color: var(--subtle); font-size: 9px; line-height: 1; flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.mcp-chevron:hover { color: var(--ink); }
+.mcp-chevron.open { transform: rotate(90deg); }
+.mcp-tools {
+  display: none; flex-direction: column; gap: 1px;
+  padding: 4px var(--sp-2) 4px 20px;
+}
+.mcp-tools.open { display: flex; }
+.mcp-tool-item {
+  font-size: 10px; color: var(--muted); font-family: var(--font-mono);
+  padding: 1px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mcp-tool-item:hover { background: var(--cream-dim); color: var(--ink); }
+
+/* Activity feed */
+#activity-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.act-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: 4px;
+  animation: act-scan 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes act-scan {
+  from { opacity: 0; background: color-mix(in oklch, var(--blue) 16%, transparent); }
+  45%  { background: color-mix(in oklch, var(--blue) 5%, transparent); }
+  to   { opacity: 1; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .act-item { animation-duration: 0ms; }
+}
+.act-bar {
+  width: 2px;
+  min-height: 28px;
+  background: var(--blue-dim);
+  border-radius: 1px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.act-body { min-width: 0; }
+.act-tool {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  word-break: break-all;
+  line-height: 1.3;
+}
+.act-time { font-size: 10px; color: var(--subtle); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.act-empty {
+  padding: var(--sp-5);
+  font-size: 12px;
+  color: var(--subtle);
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* ── CSV panel ────────────────────────────────────────────────── */
+#panel-csv {
+  overflow-y: auto;
+  background: var(--cream);
+  background-image: inherit;
+  padding: var(--sp-6) var(--sp-5);
+  gap: var(--sp-4);
+}
+
+.panel-heading {
+  font-family: var(--font-pixel);
+  font-size: 18px;  /* pixel font at 18px = visually ~36px */
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  padding-bottom: var(--sp-4);
+  border-bottom: 3px solid var(--red);
+}
+.panel-sub { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 60ch; }
+
+.drop-zone {
+  border: 2px dashed color-mix(in oklch, var(--blue) 45%, transparent);
+  border-radius: var(--radius);
+  padding: var(--sp-10) var(--sp-5);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  background: var(--paper);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--blue);
+  background: color-mix(in oklch, var(--blue) 6%, var(--paper));
+}
+.dz-icon { font-size: 28px; margin-bottom: var(--sp-3); }
+.dz-text { font-size: 14px; font-weight: 500; color: var(--ink); }
+.dz-sub  { font-size: 12px; color: var(--subtle); margin-top: var(--sp-1); }
+
+/* Preview table */
+#csv-preview-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--paper);
+  max-height: 220px;
+}
+#csv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#csv-table th {
+  position: sticky; top: 0;
+  background: var(--cream-dim);
+  padding: 6px var(--sp-3);
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+#csv-table td {
+  padding: 5px var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#csv-table tr:last-child td { border-bottom: none; }
+#csv-table tbody tr:hover td { background: var(--cream-dim); }
+
+.csv-meta { font-size: 11px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+
+/* CSV output */
+#csv-output {
+  min-height: 80px;
+  max-height: 280px;
+  overflow-y: auto;
+  border-left: 4px solid var(--blue);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+}
+#csv-output:empty::before { content: 'Agent output will appear here…'; color: var(--subtle); }
+
+/* ── Import type selector ─────────────────────────────────────── */
+.import-type-selector {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--cream-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: var(--sp-4);
+}
+.import-type-btn {
+  flex: 1;
+  padding: 6px var(--sp-3);
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.import-type-btn:hover { color: var(--ink); }
+.import-type-btn.active {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Row-by-row progress log ──────────────────────────────────── */
+#csv-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: var(--sp-3);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 5px var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--cream-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.row-item .row-num  { color: var(--subtle); min-width: 54px; }
+.row-item .row-status { font-size: 13px; line-height: 1; }
+.row-item.running   { border-color: var(--border); }
+.row-item.success   { color: var(--green); background: oklch(50% 0.14 152 / 0.07); animation: row-flash-ok 700ms ease-out both; }
+.row-item.error     { color: var(--red);   background: oklch(48% 0.18 25 / 0.07);  animation: row-flash-err 700ms ease-out both; }
+@keyframes row-flash-ok  { from { background: oklch(54% 0.18 152 / 0.30); } to { background: oklch(50% 0.14 152 / 0.07); } }
+@keyframes row-flash-err { from { background: oklch(54% 0.24 22  / 0.30); } to { background: oklch(48% 0.18 25  / 0.07); } }
+@media (prefers-reduced-motion: reduce) { .row-item.success, .row-item.error { animation: none; } }
+
+/* ── Load / download example links ───────────────────────────── */
+#load-example-btn,
+.example-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-family: var(--font-ui);
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+#load-example-btn:hover,
+.example-link:hover { color: var(--ink); }
+
+/* ── Drift warning banner ─────────────────────────────────────── */
+#drift-banner {
+  display: none;
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in oklch, var(--amber) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--amber) 40%, transparent);
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+#drift-banner strong { color: var(--amber); }
+#drift-banner .drift-stats {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ── Config panel ─────────────────────────────────────────────── */
+#panel-config {
+  padding: var(--sp-5);
+  gap: var(--sp-3);
+  overflow: hidden;
+  background: var(--cream);
+  background-image: inherit;
+}
+#panel-config code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--cream-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+#yaml-editor {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  padding: var(--sp-4);
+  border: 1px solid oklch(26% 0.013 260);
+  border-radius: var(--radius);
+  background: oklch(14% 0.012 260);
+  color: oklch(88% 0.012 75);
+  resize: none;
+  min-height: 0;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+#yaml-editor:focus-visible { border-color: var(--blue); outline: none; }
+
+#config-actions { display: flex; gap: var(--sp-2); align-items: center; flex-shrink: 0; }
+#config-status { font-size: 12px; color: var(--subtle); margin-left: auto; }
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+.btn {
+  padding: 8px var(--sp-4);
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+.btn:disabled { opacity: 0.35; cursor: default; transform: translateY(0); }
+
+.btn-primary {
+  background: var(--red);
+  color: oklch(98% 0.005 75);
+  box-shadow: 0 2px 8px oklch(54% 0.24 22 / 0.30);
+}
+.btn-primary:hover:not(:disabled) { background: oklch(46% 0.26 20); box-shadow: 0 4px 12px oklch(54% 0.24 22 / 0.40); transform: translateY(-1px); }
+.btn-primary:active:not(:disabled) { background: oklch(42% 0.24 22); transform: translateY(0); box-shadow: none; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) { background: var(--cream-dim); color: var(--ink); border-color: var(--border-dim); }
+
+.btn-group { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
+
+/* ── Scrollbars ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-dim); }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  #main { grid-template-columns: 1fr; }
+  #sidebar { display: none; }
+}
+
+/* ── Chat welcome state ───────────────────────────────────────── */
+#chat-welcome {
+  display: flex;
+  gap: var(--sp-5);
+  padding: var(--sp-8) var(--sp-5) var(--sp-4);
+  animation: msg-in var(--dur-mid) var(--ease-out);
+}
+.welcome-rule {
+  width: 5px;
+  min-height: 80px;
+  border-radius: 2px;
+  background: var(--red);
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.welcome-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: 52ch;
+}
+.welcome-title {
+  font-family: var(--font-pixel);
+  font-size: 22px;  /* Press Start 2P at 22px is visually ~40-48px regular */
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  image-rendering: pixelated;
+}
+.welcome-text {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 48ch;
+}
+.welcome-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+.prompt-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--border-dim);
+  border-radius: 3px;
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.prompt-pill:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-dim);
+  box-shadow: 0 2px 6px oklch(54% 0.24 22 / 0.15);
+}
+.prompt-pill:active { opacity: 0.7; }
+
+/* ── CSV tool-call chip ───────────────────────────────────────── */
+.csv-tc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+/* ── Server identity color variants ──────────────────────────── */
+/* Freshservice = --blue (default). Freshdesk = --red (logo red pixel). */
+.tc-bar.fd              { background: var(--red-dim); }
+.tc-label.fd            { color: var(--red); }
+.tc-name.fd             { background: var(--red-dim); color: var(--red); }
+.act-bar.fd             { background: var(--red-dim); }
+.act-tool.fd            { color: var(--red); }
+.csv-tc.fd              { background: var(--red-dim); color: var(--red); }
+
+/* ── Config status feedback colors ───────────────────────────── */
+#config-status.ok    { color: var(--green-connected); animation: status-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+#config-status.error { color: var(--red); }
+@keyframes status-pop { from { transform: scale(0.85); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #config-status.ok { animation: none; } }
+
+/* ── Theme toggle button ──────────────────────────────────────── */
+#theme-toggle {
+  width: 30px;
+  height: 30px;
+  border: 1px solid oklch(32% 0.013 260); /* fixed — always visible on dark topbar */
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: oklch(52% 0.010 260); /* fixed muted light on dark topbar */
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+#theme-toggle:hover  { background: oklch(24% 0.013 260); color: oklch(78% 0.010 75); border-color: oklch(42% 0.013 260); }
+#theme-toggle:active { background: oklch(30% 0.013 260); }
+
+/* ── Dark mode ────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --cream:      oklch(17% 0.012 260);
+  --cream-dim:  oklch(21% 0.013 260);
+  --paper:      oklch(22% 0.013 260);
+  --charcoal:   oklch(88% 0.010 75);    /* user bubbles go light in dark mode */
+  --ink:        oklch(92% 0.008 75);
+  --muted:      oklch(65% 0.010 260);
+  --subtle:     oklch(44% 0.010 260);
+  --border:     oklch(28% 0.012 260);
+  --border-dim: oklch(34% 0.013 260);
+
+  --red:              oklch(68% 0.24 22);
+  --red-dim:          oklch(20% 0.08 22);
+  --blue:             oklch(66% 0.22 255);
+  --blue-dim:         oklch(20% 0.08 255);
+  --green:            oklch(64% 0.20 152);
+  --green-connected:  oklch(78% 0.24 152);
+  --shadow-sm:        0 1px 3px oklch(0% 0 0 / 0.3), 0 4px 12px oklch(0% 0 0 / 0.2);
+}
+
+/* Override hard-coded surface colors in dark mode */
+[data-theme="dark"] body {
+  background-image:
+    linear-gradient(oklch(24% 0.014 260 / 0.7) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(24% 0.014 260 / 0.7) 1px, transparent 1px);
+}
+/* Topbar stays dark in both modes — slightly deeper than body in dark mode */
+[data-theme="dark"] #topbar {
+  background: oklch(10% 0.012 260);
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    oklch(0% 0 0 / 0.32) 2px,
+    oklch(0% 0 0 / 0.32) 3px
+  );
+}
+/* Active press states — deepen red in dark mode */
+[data-theme="dark"] .btn-primary:active:not(:disabled),
+[data-theme="dark"] #send-btn:active:not(:disabled) {
+  background: oklch(56% 0.24 22);
+}
+/* YAML editor — darken slightly below the panel background */
+[data-theme="dark"] #yaml-editor {
+  background: oklch(12% 0.008 260);
+  border-color: oklch(30% 0.012 260);
+  color: oklch(88% 0.010 75);
+}
+
+/* ── Delight ──────────────────────────────────────────────────── */
+
+/* Prompt pills: > prefix fades in on hover, space always reserved */
+.prompt-pill::before {
+  content: '>';
+  color: var(--red);
+  margin-right: 5px;
+  opacity: 0;
+  display: inline-block;
+  width: 1ch;
+  transition: opacity 140ms var(--ease-out);
+}
+.prompt-pill:hover::before { opacity: 1; }
+
+/* Logo wordmark: subtle phosphor glow on hover */
+.logo-wordmark {
+  transition: text-shadow 220ms var(--ease-out);
+}
+.logo-mark:hover .logo-wordmark {
+  text-shadow: 0 0 14px oklch(92% 0.010 75 / 0.55);
+}
+
+/* Send button: cream focus ring looks better than blue on red */
+#send-btn:focus-visible {
+  outline-color: oklch(98% 0.005 75);
+}
+
+/* Activity feed idle: monospace + blinking cursor */
+.act-empty {
+  font-family: var(--font-mono);
+}
+.act-empty::after {
+  content: ' █';
+  animation: blink-dot 1.1s step-end infinite;
+  color: var(--subtle);
+}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<header id="topbar">
+  <a class="logo-mark" href="/">
+    <img src="/static/desman-logo.png" class="logo-img" alt="">
+    <div>
+      <div class="logo-wordmark">DESMAN</div>
+      <div class="logo-tagline">READY.</div>
+    </div>
+  </a>
+
+  <div class="topbar-sep"></div>
+  <div id="server-pills"></div>
+
+  <div id="topbar-right">
+    <span id="total-tools"></span>
+    <button id="theme-toggle" aria-label="Switch to dark mode" aria-pressed="false">☾</button>
+  </div>
+</header>
+
+<!-- Tab nav -->
+<nav id="tabs" role="tablist">
+  <button class="tab-btn active" data-tab="chat" role="tab" aria-selected="true">Chat</button>
+  <button class="tab-btn" data-tab="csv"  role="tab" aria-selected="false">CSV Import</button>
+  <button class="tab-btn" data-tab="config" role="tab" aria-selected="false">Config</button>
+</nav>
+
+<!-- Main -->
+<div id="main">
+
+  <!-- Chat -->
+  <div id="panel-chat" class="panel active" role="tabpanel">
+    <div id="model-bar">
+      <label for="model-select">Model</label>
+      <select id="model-select" aria-label="Select model"></select>
+    </div>
+    <div id="chat-messages" aria-live="polite" aria-label="Conversation">
+      <div id="chat-welcome">
+        <div class="welcome-rule"></div>
+        <div class="welcome-body">
+          <div class="welcome-title">Ready.</div>
+          <p class="welcome-text">Connected to Freshdesk and Freshservice via MCP. Ask about tickets, changes, problems, assets, or the knowledge base.</p>
+          <div class="welcome-prompts" aria-label="Example queries">
+            <button class="prompt-pill">List open tickets</button>
+            <button class="prompt-pill">Search knowledge base for VPN</button>
+            <button class="prompt-pill">Show recent change requests</button>
+            <button class="prompt-pill">Create a ticket for printer issue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="input-bar">
+      <textarea id="chat-input"
+        placeholder="Ask anything… Enter to send, Shift+Enter for newline"
+        rows="1"
+        aria-label="Message input"></textarea>
+      <button id="send-btn" aria-label="Send message">Send</button>
+    </div>
+  </div>
+
+  <!-- CSV -->
+  <div id="panel-csv" class="panel" role="tabpanel">
+    <div class="panel-heading">CSV Import</div>
+    <p class="panel-sub">Upload a CSV to bulk-create Freshdesk tickets or Freshservice assets. The agent processes each row individually via MCP tools.</p>
+
+    <div class="import-type-selector" role="group" aria-label="Import type">
+      <button class="import-type-btn active" data-type="freshdesk_tickets">Freshdesk Tickets</button>
+      <button class="import-type-btn"        data-type="freshservice_assets">Freshservice Assets</button>
+    </div>
+
+    <div style="display:flex;gap:var(--sp-4);align-items:center;margin-bottom:var(--sp-3);">
+      <button id="load-example-btn" title="Load example CSV into the preview table">↓ Load example</button>
+      <a id="download-example-link" href="#" download title="Download example CSV file" class="example-link">⬇ Download example</a>
+    </div>
+
+    <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Upload CSV file">
+      <div class="dz-icon">📄</div>
+      <div class="dz-text">Drop a CSV file here or <strong>click to browse</strong></div>
+      <div class="dz-sub">UTF-8 · Latin-1 · BOM-safe</div>
+      <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" aria-hidden="true">
+    </div>
+
+    <div id="csv-preview-section" style="display:none">
+      <div id="csv-preview-wrap">
+        <table id="csv-table" role="grid">
+          <thead id="csv-thead"></thead>
+          <tbody id="csv-tbody"></tbody>
+        </table>
+      </div>
+      <div class="csv-meta" id="csv-meta" aria-live="polite"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="csv-run-btn">Run Import</button>
+        <button class="btn btn-ghost"   id="csv-clear-btn">Clear</button>
+      </div>
+      <div id="csv-progress" style="display:none" aria-live="polite"></div>
+      <div id="drift-banner" role="alert"></div>
+      <div id="csv-output" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <div id="panel-config" class="panel" role="tabpanel">
+    <div class="panel-heading">Configuration</div>
+    <p class="panel-sub">Edit <code>config/config.local.yaml</code>. Changes take effect on the next server restart.</p>
+    <textarea id="yaml-editor" spellcheck="false" aria-label="YAML configuration editor"></textarea>
+    <div id="config-actions">
+      <button class="btn btn-primary" id="config-save-btn">Save</button>
+      <button class="btn btn-ghost"   id="config-reload-btn">Reload</button>
+      <span id="config-status" aria-live="polite"></span>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="sb-section">
+      <div class="sb-head">MCP Servers</div>
+      <div id="mcp-list"></div>
+    </div>
+    <div class="sb-section grow">
+      <div class="sb-head">Tool Activity</div>
+      <div id="activity-feed">
+        <div class="act-empty" id="act-empty">&gt; IDLE<br>Awaiting tool calls...</div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+'use strict';
+
+/* ── Helpers ──────────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const el = (tag, props = {}, ...children) => {
+  const e = document.createElement(tag);
+  Object.assign(e, props);
+  children.forEach(c => typeof c === 'string' ? e.append(c) : e.appendChild(c));
+  return e;
+};
+const fmt = ts => new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+/* ── State ────────────────────────────────────────────────────── */
+const S = { history: [], streaming: false, csvData: null, disabledServers: new Set(), importType: 'freshdesk_tickets', rowToolSeen: false };
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    $('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ── Models ───────────────────────────────────────────────────── */
+async function loadModels() {
+  try {
+    const { models, default: def } = await fetch('/api/models').then(r => r.json());
+    const sel = $('model-select');
+    sel.innerHTML = '';
+
+    const curated = models.filter(m => m.curated);
+    const extra   = models.filter(m => !m.curated);
+
+    if (curated.length) {
+      const og = el('optgroup'); og.label = 'Configured models';
+      curated.forEach(m => {
+        const o = el('option', {value: m.display_name, textContent: m.display_name});
+        if (m.display_name === def) o.selected = true;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+    if (extra.length) {
+      const og = el('optgroup'); og.label = 'Other local models';
+      extra.forEach(m => {
+        const o = el('option', {value: m.display_name, textContent: m.ollama_model});
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    }
+  } catch(e) { console.error('models:', e); }
+}
+
+/* ── MCP status ───────────────────────────────────────────────── */
+async function loadMCP() {
+  try {
+    const { servers, total_tools } = await fetch('/api/mcp/status').then(r => r.json());
+
+    /* Topbar pills */
+    const pills = $('server-pills');
+    pills.innerHTML = '';
+    servers.forEach(s => {
+      const ignored = S.disabledServers.has(s.name);
+      const p = el('div', {className: 's-pill' + (ignored ? ' ignored' : '')});
+      p.innerHTML = `<span class="s-dot ${ignored ? 'disabled' : s.status}"></span>${ignored ? `<s>${s.name}</s>` : s.name}`;
+      pills.appendChild(p);
+    });
+    const activeTools = servers
+      .filter(s => !S.disabledServers.has(s.name))
+      .reduce((n, s) => n + (s.tool_count || 0), 0);
+    $('total-tools').textContent = total_tools ? `${activeTools}/${total_tools} tools` : '';
+
+    /* Sidebar */
+    const list = $('mcp-list');
+    list.innerHTML = '';
+    servers.forEach(s => {
+      const ignored = S.disabledServers.has(s.name);
+      const hasTools = s.tools && s.tools.length > 0;
+      const block = el('div', {className: 'mcp-block'});
+      const row = el('div', {className: 'mcp-row' + (ignored ? ' ignored' : '')});
+      row.innerHTML = `
+        <span class="dot ${s.status}"></span>
+        <span class="mcp-name">${s.name}</span>
+        <span class="mcp-count">${ignored ? 'off' : (s.tool_count ? s.tool_count + ' tools' : s.status)}</span>
+        ${hasTools ? `<button class="mcp-chevron" aria-label="Show tools for ${s.name}" data-server="${s.name}">&#9658;</button>` : ''}
+        <button class="server-toggle ${ignored ? '' : 'on'}"
+                aria-label="Toggle ${s.name}"
+                aria-pressed="${!ignored}"
+                data-server="${s.name}"></button>`;
+      block.appendChild(row);
+      if (hasTools) {
+        const toolList = el('div', {className: 'mcp-tools'});
+        toolList.dataset.server = s.name;
+        s.tools.forEach(t => {
+          const item = el('div', {className: 'mcp-tool-item'});
+          item.textContent = t;
+          toolList.appendChild(item);
+        });
+        block.appendChild(toolList);
+      }
+      list.appendChild(block);
+    });
+  } catch(e) { console.error('mcp:', e); }
+}
+
+/* Toggle handler — event delegation on the MCP list */
+$('mcp-list').addEventListener('click', e => {
+  // Chevron — expand/collapse tool list
+  const chev = e.target.closest('.mcp-chevron');
+  if (chev) {
+    const name = chev.dataset.server;
+    const toolList = $('mcp-list').querySelector(`.mcp-tools[data-server="${name}"]`);
+    if (toolList) {
+      const open = toolList.classList.toggle('open');
+      chev.classList.toggle('open', open);
+    }
+    return;
+  }
+  const btn = e.target.closest('.server-toggle');
+  if (!btn) return;
+  const name = btn.dataset.server;
+  if (S.disabledServers.has(name)) {
+    S.disabledServers.delete(name);
+  } else {
+    S.disabledServers.add(name);
+  }
+  loadMCP();   // re-render with updated state
+});
+
+/* Server accent: Freshdesk = red (logo red pixel), Freshservice = blue (logo blue pixel) */
+const serverAccent = name => name.startsWith('freshdesk_') ? 'fd' : '';
+
+/* ── Activity feed ────────────────────────────────────────────── */
+function recordActivity(toolName) {
+  const feed = $('activity-feed');
+  $('act-empty')?.remove();
+  const fd = serverAccent(toolName) ? ' fd' : '';
+
+  const item = el('div', {className: 'act-item'});
+  item.innerHTML = `
+    <div class="act-bar${fd}"></div>
+    <div class="act-body">
+      <div class="act-tool${fd}">${toolName}</div>
+      <div class="act-time">${fmt(Date.now())}</div>
+    </div>`;
+  feed.insertBefore(item, feed.firstChild);
+  while (feed.children.length > 60) feed.removeChild(feed.lastChild);
+}
+
+/* ── Chat ─────────────────────────────────────────────────────── */
+const scrollBottom = () => {
+  const c = $('chat-messages');
+  c.scrollTop = c.scrollHeight;
+};
+
+function addMsg(role) {
+  $('chat-welcome')?.remove();
+  const wrap   = el('div', {className: `msg ${role}`});
+  const label  = el('div', {className: 'msg-role', textContent: role === 'user' ? 'You' : 'Desman'});
+  const bubble = el('div', {className: 'msg-bubble'});
+  wrap.append(label, bubble);
+  $('chat-messages').appendChild(wrap);
+  scrollBottom();
+  return bubble;
+}
+
+function addToolCall(name) {
+  const fd = serverAccent(name) ? ' fd' : '';
+  const row = el('div', {className: 'tool-call-row'});
+  row.innerHTML = `
+    <div class="tc-bar${fd}"></div>
+    <div class="tc-label${fd}">
+      <span>Calling</span>
+      <span class="tc-name${fd}">${name}</span>
+    </div>`;
+  $('chat-messages').appendChild(row);
+  scrollBottom();
+}
+
+async function sendMessage() {
+  if (S.streaming) return;
+  const input  = $('chat-input');
+  const model  = $('model-select').value;
+  const text   = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = '42px';
+  input.dispatchEvent(new Event('input'));
+
+  addMsg('user').textContent = text;
+  S.history.push({role: 'user', content: text});
+
+  const bubble = addMsg('assistant');
+  bubble.classList.add('streaming');
+
+  $('send-btn').disabled = true;
+  S.streaming = true;
+
+  let reply = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: text, model, history: S.history.slice(0,-1), disabled_servers: [...S.disabledServers]}),
+    });
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buf     = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream:true});
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        let event = '', data = '';
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) event = line.slice(7);
+          if (line.startsWith('data: '))  data  = line.slice(6);
+        }
+        if (!data) continue;
+        try {
+          const p = JSON.parse(data);
+          if      (event === 'text')      { reply += p.chunk; bubble.textContent = reply; scrollBottom(); }
+          else if (event === 'tool_call') { addToolCall(p.tool); recordActivity(p.tool); }
+          else if (event === 'error')     { bubble.textContent = '⚠ ' + p.message; }
+        } catch {}
+      }
+    }
+  } catch(e) {
+    bubble.textContent = '⚠ ' + e.message;
+  } finally {
+    bubble.classList.remove('streaming');
+    S.history.push({role:'assistant', content: reply || bubble.textContent});
+    S.streaming = false;
+    $('send-btn').disabled = false;
+    input.focus();
+  }
+}
+
+$('send-btn').addEventListener('click', sendMessage);
+$('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+$('chat-messages').addEventListener('click', e => {
+  if (e.target.classList.contains('prompt-pill')) {
+    const input = $('chat-input');
+    input.value = e.target.textContent;
+    input.dispatchEvent(new Event('input'));
+    input.focus();
+    sendMessage();
+  }
+});
+$('chat-input').addEventListener('input', function() {
+  this.style.height = '42px';
+  this.style.height = Math.min(this.scrollHeight, 130) + 'px';
+});
+
+/* ── Import type selector ─────────────────────────────────────── */
+function updateExampleLinks() {
+  const filename = EXAMPLE_FILES[S.importType];
+  const link = $('download-example-link');
+  if (filename) {
+    link.href = `/api/examples/${filename}`;
+    link.download = filename;
+  }
+}
+
+document.querySelectorAll('.import-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.import-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    S.importType = btn.dataset.type;
+    updateExampleLinks();
+  });
+});
+
+/* ── Load example CSV ─────────────────────────────────────────── */
+const EXAMPLE_FILES = {
+  freshdesk_tickets:   'freshdesk_tickets_example.csv',
+  freshservice_assets: 'freshservice_assets_example.csv',
+};
+updateExampleLinks();
+
+$('load-example-btn').addEventListener('click', async () => {
+  const filename = EXAMPLE_FILES[S.importType];
+  if (!filename) return;
+  try {
+    const res = await fetch(`/api/examples/${filename}`);
+    if (!res.ok) { alert(`Example file not found: ${filename}`); return; }
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: 'text/csv' });
+    await uploadCSV(file);
+  } catch (e) { alert('Could not load example: ' + e.message); }
+});
+
+/* ── CSV ──────────────────────────────────────────────────────── */
+const dropZone  = $('drop-zone');
+const fileInput = $('csv-file-input');
+
+dropZone.addEventListener('click',     () => fileInput.click());
+dropZone.addEventListener('keydown',   e  => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+dropZone.addEventListener('dragover',  e  => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',      e  => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) uploadCSV(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) uploadCSV(fileInput.files[0]); });
+
+async function uploadCSV(file) {
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const r = await fetch('/api/csv/preview', {method:'POST', body:form});
+    if (!r.ok) { alert('Parse error: ' + await r.text()); return; }
+    S.csvData = await r.json();
+    renderPreview(S.csvData);
+  } catch(e) { alert('Upload failed: ' + e.message); }
+}
+
+function renderPreview(d) {
+  const thead = $('csv-thead');
+  thead.innerHTML = '';
+  const hr = document.createElement('tr');
+  d.columns.forEach(c => hr.appendChild(el('th', {}, c)));
+  thead.appendChild(hr);
+
+  const tbody = $('csv-tbody');
+  tbody.innerHTML = '';
+  d.rows.slice(0,20).forEach(row => {
+    const tr = document.createElement('tr');
+    d.columns.forEach(c => tr.appendChild(el('td', {}, String(row[c] ?? ''))));
+    tbody.appendChild(tr);
+  });
+
+  $('csv-meta').textContent = `${d.total_rows} rows · ${d.columns.length} columns · ${d.filename}`;
+  $('csv-preview-section').style.display = '';
+  $('csv-output').textContent = '';
+}
+
+$('csv-clear-btn').addEventListener('click', () => {
+  S.csvData = null;
+  $('csv-preview-section').style.display = 'none';
+  fileInput.value = '';
+});
+
+$('csv-run-btn').addEventListener('click', async () => {
+  if (!S.csvData) return;
+  const model      = $('model-select').value;
+  const output     = $('csv-output');
+  const progress   = $('csv-progress');
+  const drift      = $('drift-banner');
+  output.innerHTML   = '';
+  progress.innerHTML = '';
+  drift.innerHTML    = '';
+  drift.style.display = 'none';
+  progress.style.display = '';
+  $('csv-run-btn').disabled = true;
+
+  /* Bulk mode: map row number → DOM row item element */
+  const rowItems = {};
+
+  function addRowItem(rowNum, total) {
+    const item = document.createElement('div');
+    item.className = 'row-item running';
+    item.id = `row-item-${rowNum}`;
+    const numSpan = el('span', {className: 'row-num'}, `Row ${rowNum}/${total}`);
+    const statusSpan = el('span', {className: 'row-status'}, '⋯');
+    const textSpan = el('span', {}, '');
+    item.append(numSpan, statusSpan, textSpan);
+    progress.appendChild(item);
+    progress.scrollTop = progress.scrollHeight;
+    rowItems[rowNum] = {item, textSpan, statusSpan};
+    return item;
+  }
+
+  function finishRowItem(rowNum, p) {
+    const r = rowItems[rowNum];
+    if (!r) return;
+    r.item.classList.remove('running');
+    if (p.success) {
+      r.item.classList.add('success');
+      r.statusSpan.textContent = '✓';
+    } else if (p.tool_called && p.tool_error) {
+      r.item.classList.add('error');
+      r.statusSpan.textContent = '✗';
+      r.textSpan.textContent = ' tool error';
+    } else {
+      r.item.classList.add('error');
+      r.statusSpan.textContent = '✗';
+      r.textSpan.textContent = ' no tool called';
+    }
+  }
+
+  /* Append a text chunk to the output, extending the last text node if possible */
+  function csvText(chunk) {
+    const last = output.lastChild;
+    if (last && last.nodeType === Node.TEXT_NODE) {
+      last.textContent += chunk;
+    } else {
+      output.appendChild(document.createTextNode(chunk));
+    }
+    output.scrollTop = output.scrollHeight;
+  }
+
+  /* Append a styled tool-call chip */
+  function csvTool(name) {
+    output.appendChild(document.createTextNode('\n'));
+    const fd = serverAccent(name) ? ' fd' : '';
+    const chip = el('span', {className: 'csv-tc' + fd}, '↳ ' + name);
+    output.appendChild(chip);
+    output.appendChild(document.createTextNode('\n'));
+    output.scrollTop = output.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('/api/csv/run', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        rows: S.csvData.rows,
+        columns: S.csvData.columns,
+        model,
+        filename: S.csvData.filename,
+        disabled_servers: [...S.disabledServers],
+        import_type: S.importType,
+      }),
+    });
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buf     = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream:true});
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+
+      for (const part of parts) {
+        let event = '', data = '';
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) event = line.slice(7);
+          if (line.startsWith('data: '))  data  = line.slice(6);
+        }
+        if (!data) continue;
+        try {
+          const p = JSON.parse(data);
+          if      (event === 'text')       { csvText(p.chunk); }
+          else if (event === 'tool_call')  { csvTool(p.tool); recordActivity(p.tool); }
+          else if (event === 'error')      { csvText('\n⚠ ' + p.message); }
+          else if (event === 'row_start')  { addRowItem(p.row, p.total); }
+          else if (event === 'row_done')   { finishRowItem(p.row, p); }
+          else if (event === 'bulk_done')  {
+            const failed = p.failed_count > 0 ? `, ${p.failed_count} failed` : '';
+            const driftNote = p.drift_detected
+              ? ` · drift first at row ${p.first_drift_row}, peak streak ${p.peak_consecutive_failures}`
+              : '';
+            csvText(`\n✓ Import complete — ${p.success_count} created${failed}${driftNote}.`);
+          }
+          else if (event === 'drift_warning') {
+            drift.style.display = '';
+            drift.innerHTML =
+              `<strong>⚠ Drift detected</strong> — model has not called tools for ` +
+              `<strong>${p.consecutive_failures} consecutive rows</strong> (at row ${p.row}). ` +
+              `Import is continuing but results may be incomplete.<br>` +
+              `<span class="drift-stats">` +
+              `${p.success_count} succeeded · ${p.failed_count} failed so far` +
+              `</span>`;
+          }
+        } catch {}
+      }
+    }
+  } catch(e) {
+    output.innerHTML = '';
+    output.appendChild(document.createTextNode('⚠ Error: ' + e.message));
+  } finally {
+    $('csv-run-btn').disabled = false;
+  }
+});
+
+/* ── Config ───────────────────────────────────────────────────── */
+async function loadConfig() {
+  try {
+    const r = await fetch('/api/config');
+    if (!r.ok) throw new Error(await r.text());
+    $('yaml-editor').value = (await r.json()).yaml;
+    flashStatus('Loaded', 'ok');
+  } catch(e) { setStatus('⚠ ' + e.message, 'error'); }
+}
+
+function setStatus(msg, type = '') {
+  const s = $('config-status');
+  s.textContent = msg;
+  s.className = type || '';
+}
+function flashStatus(msg, type = '') { setStatus(msg, type); setTimeout(() => setStatus(''), 2000); }
+
+$('config-reload-btn').addEventListener('click', loadConfig);
+$('config-save-btn').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({yaml: $('yaml-editor').value}),
+    });
+    const d = await r.json();
+    d.ok ? flashStatus('✓ Saved — restart to apply', 'ok') : setStatus('⚠ ' + (d.detail || 'Error'), 'error');
+  } catch(e) { setStatus('⚠ ' + e.message, 'error'); }
+});
+
+/* ── Dark mode toggle ─────────────────────────────────────────── */
+function syncThemeToggle() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const btn = $('theme-toggle');
+  btn.textContent = isDark ? '☀' : '☾';
+  btn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+  btn.setAttribute('aria-pressed', String(isDark));
+}
+$('theme-toggle').addEventListener('click', () => {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
+  localStorage.setItem('desman-theme', isDark ? 'light' : 'dark');
+  syncThemeToggle();
+});
+
+/* ── Delight ──────────────────────────────────────────────────── */
+
+/* Time-aware tagline — replaces static "READY." in topbar and welcome */
+function getTimeTagline() {
+  const h = new Date().getHours();
+  if (h <  5) return 'LATE SHIFT.';
+  if (h <  9) return 'MORNING.';
+  if (h < 12) return 'READY.';
+  if (h < 14) return 'LUNCHTIME.';
+  if (h < 18) return 'READY.';
+  if (h < 21) return 'EVENING.';
+  return 'NIGHT OWL.';
+}
+
+/* Typewriter effect — char-by-char reveal at fixed interval */
+function typewriter(el, text, msPerChar = 65) {
+  el.textContent = '';
+  let i = 0;
+  const tick = () => { if (i < text.length) { el.textContent += text[i++]; setTimeout(tick, msPerChar); } };
+  tick();
+}
+
+/* Tool count boot animation — counts up from 0, both numbers advance together */
+let _booted = false;
+function bootCountUp(el, active, total) {
+  _booted = true;
+  let n = 0;
+  const step = () => {
+    n = Math.min(n + Math.max(1, Math.ceil((total - n) / 6)), total);
+    el.textContent = `${Math.round(active * n / total)}/${n} tools`;
+    if (n < total) setTimeout(step, 40);
+  };
+  step();
+}
+
+/* Patch loadMCP to use boot count-up on first call */
+const _origLoadMCP = loadMCP;
+async function loadMCPWithBoot() {
+  await _origLoadMCP();
+  const el = $('total-tools');
+  const m = el.textContent.match(/^(\d+)\/(\d+)/);
+  if (m && !_booted) bootCountUp(el, +m[1], +m[2]);
+}
+
+/* Console easter egg — for curious developers */
+console.log(
+  '%c DESMAN %c\n%c > local AI agents — Freshdesk + Freshservice via MCP\n > Console open? You seem like you know what you\'re doing.\n > github.com/B1sc0tt0',
+  'font-family:monospace;font-size:18px;font-weight:bold;background:#c0392b;color:#fff;padding:3px 10px;border-radius:2px;',
+  '',
+  'font-family:monospace;font-size:11px;color:#888;'
+);
+
+/* ── Init ─────────────────────────────────────────────────────── */
+(async () => {
+  syncThemeToggle();
+
+  /* Time-aware topbar tagline */
+  const taglineEl = document.querySelector('.logo-tagline');
+  if (taglineEl) taglineEl.textContent = getTimeTagline();
+
+  await Promise.all([loadModels(), loadMCPWithBoot(), loadConfig()]);
+  setInterval(loadMCP, 30_000);
+
+  /* Typewriter on welcome title after a brief pause */
+  const welcomeTitle = document.querySelector('.welcome-title');
+  if (welcomeTitle) {
+    const txt = welcomeTitle.textContent;
+    setTimeout(() => typewriter(welcomeTitle, txt, 70), 250);
+  }
+
+  $('chat-input').focus();
+})();
+</script>
+</body>
+</html>
