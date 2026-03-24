@@ -299,13 +299,28 @@ body {
 .msg.user  { align-self: flex-end;   align-items: flex-end;   max-width: 78%; }
 .msg.assistant { align-self: flex-start; align-items: flex-start; max-width: 82%; }
 
+.msg-header { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-1); }
 .msg-role {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--subtle);
-  padding: 0 var(--sp-1);
+}
+.msg-model {
+  font-size: 9px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  background: var(--cream-dim);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* User bubble: charcoal */
@@ -569,6 +584,7 @@ body {
   line-height: 1.3;
 }
 .act-time { font-size: 10px; color: var(--subtle); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.act-model { font-size: 9px; font-family: var(--font-mono); color: var(--muted); margin-top: 1px; opacity: 0.75; }
 
 .act-empty {
   padding: var(--sp-5);
@@ -1719,8 +1735,17 @@ $('mcp-list').addEventListener('click', e => {
 /* Server accent: Freshdesk = red (logo red pixel), Freshservice = blue (logo blue pixel) */
 const serverAccent = name => name.startsWith('freshdesk_') ? 'fd' : '';
 
+/* Strip provider prefix for compact display (e.g. "anthropic:claude-sonnet-4-6" → "claude-sonnet-4-6") */
+function modelShortName(model) {
+  if (!model) return '';
+  const knownPrefixes = ['anthropic', 'openai', 'huggingface'];
+  const colon = model.indexOf(':');
+  if (colon > 0 && knownPrefixes.includes(model.slice(0, colon))) return model.slice(colon + 1);
+  return model;
+}
+
 /* ── Activity feed ────────────────────────────────────────────── */
-function recordActivity(toolName) {
+function recordActivity(toolName, model) {
   const feed = $('activity-feed');
   $('act-empty')?.remove();
   const fd = serverAccent(toolName) ? ' fd' : '';
@@ -1731,6 +1756,7 @@ function recordActivity(toolName) {
     el('div', {className: `act-tool${fd}`, textContent: toolName}),
     el('div', {className: 'act-time',      textContent: fmt(Date.now())}),
   );
+  if (model) actBody.append(el('div', {className: 'act-model', textContent: modelShortName(model)}));
   item.append(el('div', {className: `act-bar${fd}`}), actBody);
   feed.insertBefore(item, feed.firstChild);
   while (feed.children.length > 60) feed.removeChild(feed.lastChild);
@@ -1742,12 +1768,16 @@ const scrollBottom = () => {
   c.scrollTop = c.scrollHeight;
 };
 
-function addMsg(role) {
+function addMsg(role, model) {
   $('chat-welcome')?.remove();
   const wrap   = el('div', {className: `msg ${role}`});
-  const label  = el('div', {className: 'msg-role', textContent: role === 'user' ? 'You' : 'Desman'});
+  const header = el('div', {className: 'msg-header'});
+  header.appendChild(el('div', {className: 'msg-role', textContent: role === 'user' ? 'You' : 'Desman'}));
+  if (role === 'assistant' && model) {
+    header.appendChild(el('div', {className: 'msg-model', textContent: modelShortName(model)}));
+  }
   const bubble = el('div', {className: 'msg-bubble'});
-  wrap.append(label, bubble);
+  wrap.append(header, bubble);
   $('chat-messages').appendChild(wrap);
   scrollBottom();
   return bubble;
@@ -1777,7 +1807,7 @@ async function sendMessage() {
   addMsg('user').textContent = text;
   S.history.push({role: 'user', content: text});
 
-  const bubble = addMsg('assistant');
+  const bubble = addMsg('assistant', model);
   bubble.classList.add('streaming');
 
   $('send-btn').disabled = true;
@@ -1820,7 +1850,7 @@ async function sendMessage() {
         try {
           const p = JSON.parse(data);
           if      (event === 'text')      { reply += p.chunk; bubble.textContent = reply; scrollBottom(); }
-          else if (event === 'tool_call') { addToolCall(p.tool); recordActivity(p.tool); }
+          else if (event === 'tool_call') { addToolCall(p.tool); recordActivity(p.tool, model); }
           else if (event === 'error')     { bubble.textContent = '⚠ ' + p.message; }
         } catch {}
       }
@@ -2057,7 +2087,7 @@ $('csv-run-btn').addEventListener('click', async () => {
         try {
           const p = JSON.parse(data);
           if      (event === 'text')       { csvText(p.chunk); }
-          else if (event === 'tool_call')  { csvTool(p.tool); recordActivity(p.tool); }
+          else if (event === 'tool_call')  { csvTool(p.tool); recordActivity(p.tool, model); }
           else if (event === 'error')      { csvText('\n⚠ ' + p.message); }
           else if (event === 'row_start')  { addRowItem(p.row, p.total); }
           else if (event === 'row_done')   { finishRowItem(p.row, p); }

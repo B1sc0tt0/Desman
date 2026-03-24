@@ -40,6 +40,7 @@ _DEFAULT_HF_MODELS = [
     {"display_name": "Mistral 7B v0.3 (HF)", "model_id": "mistralai/Mistral-7B-Instruct-v0.3"},
     {"display_name": "Mixtral 8x7B (HF)",    "model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"},
     {"display_name": "Gemma 3 27B (HF)",     "model_id": "google/gemma-3-27b-it"},
+    {"display_name": "MiniMax M2.5 (HF)",    "model_id": "MiniMaxAI/MiniMax-M2.5"},
 ]
 
 

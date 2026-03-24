@@ -13,6 +13,7 @@ __pycache__/
 *.egg-info/
 build/
 .venv/
+# dist/ is intentionally NOT excluded here — it contains the UI release snapshot
 
 # OS
 .DS_Store

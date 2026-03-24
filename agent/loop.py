@@ -62,7 +62,7 @@ def run(
         if result.has_tool_calls:
             messages.append({
                 "role": "assistant",
-                "content": result.text or "",
+                "content": "",  # Drop any text the model emitted alongside tool_calls — some models (Gemma via HF) output partial tool-call text as content, which gets echoed back on the next turn
                 "tool_calls": [
                     {
                         "id": tc.id,

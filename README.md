@@ -24,6 +24,7 @@ The agent automatically picks the right tool, calls it, and streams the answer b
 
 **UI features**
 - Chat panel with real-time streaming and inline tool-call indicators
+- Model name badge shown on each assistant message and in the activity feed
 - CSV import — bulk-create Freshdesk tickets or Freshservice assets from a spreadsheet
 - Live tool activity feed (sidebar)
 - Model selector — pick your model at runtime; local and cloud models shown together
@@ -253,6 +254,11 @@ desman/
 - MCP servers as self-contained subfolders — add a new app without touching Desman code
 - CSV bulk import with per-row status and drift detection
 - Freshdesk (24 tools) + Freshservice (33 tools)
+
+**Recent fixes (v0.1.x)**
+- HuggingFace model reliability: Gemma and other HF-hosted models now correctly produce a prose answer after tool results instead of re-invoking tools or looping
+- Null argument guard: HuggingFace API responses with `null` tool arguments no longer crash the agent
+- Model name badge: the active model is now shown inline on each assistant message and in the tool activity feed, making it easy to tell which model responded when switching mid-session
 
 **v0.2 considerations**
 - Setup wizard — configure credentials and MCP servers entirely through the UI
