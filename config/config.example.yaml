@@ -3,16 +3,14 @@
 # config.local.yaml is gitignored — never commit it.
 
 agent:
-  # System prompt — controls the agent's behaviour, scope, and tone.
-  # Keep it short and explicit. Smaller models (3B–8B) work best with
-  # a direct, minimal prompt rather than a long one.
+  # System prompt — admin-controlled, not visible or overridable by end user.
+  # This defines the agent's overall behaviour, scope, and tone.
   system_prompt: |
     You are a helpful IT support assistant with access to Freshservice and Freshdesk.
     Always confirm actions before executing them. Be concise.
 
   # Default model shown on first load.
-  # The user can change the model at any time in the UI.
-  # Must be pulled locally via Ollama — models not installed are excluded automatically.
+  # Must appear in the models list below AND be pulled locally via Ollama.
   default_model: "llama3.2:3b"
 
   # Agent loop behaviour
@@ -53,9 +51,9 @@ mcp_servers:
   #   script: "personio_server.py"
   #   enabled: false
 
-# Model list — defines which models appear in the UI picker.
-# Only models that are also installed locally via Ollama will be shown.
-# The user selects the active model at runtime — this list is a starting point.
+# Curated model list — admin-controlled.
+# Only models listed here will appear in the UI.
+# Models not pulled locally are silently excluded from the picker.
 #
 # Hardware guidance:
 #   Raspberry Pi 5 (8 GB) → 3B models only

@@ -1,27 +1,22 @@
-# Python
+# Live config — contains no secrets but is machine-specific
+config/config.local.yaml
+
+# MCP server credentials — never commit
+mcp_servers/**/.env
+
+# External API keys — never commit
+config/external_apis.yaml
+
+# Python build artifacts
 __pycache__/
 *.py[cod]
 *.egg-info/
-.eggs/
 build/
-*.so
-
-# Virtual environment
 .venv/
-venv/
-env/
 
-# Credentials — never commit
-mcp_servers/**/.env
-config/config.local.yaml
-
-# macOS
+# OS
 .DS_Store
 
-# Editor
-.idea/
-.vscode/
-*.swp
-
-# Claude Code local settings
-.claude/
+# Logs
+*.log
+logs/

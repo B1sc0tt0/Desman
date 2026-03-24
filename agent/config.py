@@ -16,7 +16,31 @@ import yaml
 # Desman root = two levels up from this file (agent/config.py -> agent/ -> root)
 ROOT = Path(__file__).parent.parent
 CONFIG_PATH = ROOT / "config" / "config.local.yaml"
+EXTERNAL_APIS_PATH = ROOT / "config" / "external_apis.yaml"
 MCP_SERVERS_DIR = ROOT / "mcp_servers"
+
+_DEFAULT_ANTHROPIC_MODELS = [
+    {"display_name": "Claude Sonnet 4.6", "model_id": "claude-sonnet-4-6"},
+    {"display_name": "Claude Haiku 4.5", "model_id": "claude-haiku-4-5-20251001"},
+    {"display_name": "Claude Opus 4.6",  "model_id": "claude-opus-4-6"},
+]
+
+_DEFAULT_OPENAI_MODELS = [
+    {"display_name": "GPT-4o",       "model_id": "gpt-4o"},
+    {"display_name": "GPT-4o Mini",  "model_id": "gpt-4o-mini"},
+    {"display_name": "GPT-4 Turbo",  "model_id": "gpt-4-turbo"},
+]
+
+# Models known to support tool calling on HF Serverless Inference API (free tier)
+_DEFAULT_HF_MODELS = [
+    {"display_name": "Llama 3.3 70B (HF)",   "model_id": "meta-llama/Llama-3.3-70B-Instruct"},
+    {"display_name": "Llama 3.1 8B (HF)",    "model_id": "meta-llama/Llama-3.1-8B-Instruct"},
+    {"display_name": "Qwen 2.5 72B (HF)",    "model_id": "Qwen/Qwen2.5-72B-Instruct"},
+    {"display_name": "Qwen 2.5 7B (HF)",     "model_id": "Qwen/Qwen2.5-7B-Instruct"},
+    {"display_name": "Mistral 7B v0.3 (HF)", "model_id": "mistralai/Mistral-7B-Instruct-v0.3"},
+    {"display_name": "Mixtral 8x7B (HF)",    "model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"},
+    {"display_name": "Gemma 3 27B (HF)",     "model_id": "google/gemma-3-27b-it"},
+]
 
 
 class ConfigError(Exception):
@@ -63,6 +87,56 @@ def get_system_prompt(cfg: dict) -> str:
 
 def get_curated_models(cfg: dict) -> list[dict]:
     return cfg["models"]
+
+
+def load_external_apis() -> dict:
+    """Load external API config. Returns empty dict if file doesn't exist."""
+    if not EXTERNAL_APIS_PATH.exists():
+        return {}
+    with open(EXTERNAL_APIS_PATH) as f:
+        return yaml.safe_load(f) or {}
+
+
+def save_external_apis(data: dict) -> None:
+    """Write external API config to disk."""
+    EXTERNAL_APIS_PATH.write_text(yaml.dump(data, default_flow_style=False, allow_unicode=True))
+
+
+def get_external_models(external_apis: dict) -> list[dict]:
+    """
+    Returns list of enabled external models.
+    Each entry: {display_name, model_string (with provider prefix), provider}
+    Only included when the provider is enabled AND has a non-empty api_key.
+    """
+    models = []
+    anthropic = external_apis.get("anthropic", {})
+    if anthropic.get("enabled") and anthropic.get("api_key"):
+        for m in anthropic.get("models", _DEFAULT_ANTHROPIC_MODELS):
+            models.append({
+                "display_name": m["display_name"],
+                "model_string": f"anthropic:{m['model_id']}",
+                "provider": "anthropic",
+            })
+
+    openai = external_apis.get("openai", {})
+    if openai.get("enabled") and openai.get("api_key"):
+        for m in openai.get("models", _DEFAULT_OPENAI_MODELS):
+            models.append({
+                "display_name": m["display_name"],
+                "model_string": f"openai:{m['model_id']}",
+                "provider": "openai",
+            })
+
+    huggingface = external_apis.get("huggingface", {})
+    if huggingface.get("enabled") and huggingface.get("api_key"):
+        for m in huggingface.get("models", _DEFAULT_HF_MODELS):
+            models.append({
+                "display_name": m["display_name"],
+                "model_string": f"huggingface:{m['model_id']}",
+                "provider": "huggingface",
+            })
+
+    return models
 
 
 def get_mcp_server_configs(cfg: dict) -> list[dict]:

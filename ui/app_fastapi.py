@@ -40,10 +40,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from agent.config import (
     ConfigError,
     CONFIG_PATH,
+    MCP_SERVERS_DIR,
+    _DEFAULT_HF_MODELS,
     get_curated_models,
+    get_external_models,
     get_mcp_server_configs,
     get_system_prompt,
     load_config,
+    load_external_apis,
+    save_external_apis,
 )
 from agent.mcp_client import SessionManager
 from agent.ollama_client import filter_to_available, list_local_models
@@ -157,7 +162,15 @@ async def api_models():
             default_display = entry["display_name"]
             break
 
-    return {"models": curated + extra, "default": default_display}
+    # Add external models (Anthropic, OpenAI) — read fresh so no restart needed
+    external_apis = load_external_apis()
+    ext_models = [
+        {"display_name": m["display_name"], "ollama_model": m["model_string"],
+         "curated": True, "provider": m["provider"]}
+        for m in get_external_models(external_apis)
+    ]
+
+    return {"models": curated + extra + ext_models, "default": default_display}
 
 
 # ── MCP status ────────────────────────────────────────────────────────────────
@@ -181,6 +194,56 @@ async def api_mcp_status():
         servers.append({"name": name, "status": status, "tool_count": tool_count, "tools": tools})
     total_tools = sum(s["tool_count"] for s in servers)
     return {"servers": servers, "total_tools": total_tools}
+
+
+@app.get("/api/mcp/tools")
+async def api_mcp_tools():
+    """Full tool schemas (description + parameters) keyed by server name."""
+    if not _session_manager or not _session_manager.registry:
+        return {}
+    result = {}
+    for name, conn in _session_manager.registry.connections.items():
+        prefix = f"{name}_"
+        tools = []
+        for t in conn.tools:
+            fn = t.get("function", {})
+            full_name = fn.get("name", "")
+            display = full_name[len(prefix):] if full_name.startswith(prefix) else full_name
+            tools.append({
+                "name": display,
+                "full_name": full_name,
+                "description": fn.get("description", ""),
+                "parameters": fn.get("parameters", {}),
+            })
+        result[name] = tools
+    return result
+
+
+@app.get("/api/mcp/readme/{server}")
+async def api_mcp_readme(server: str):
+    """Return README.md content for a given MCP server."""
+    folder = None
+    for srv in (_cfg or {}).get("mcp_servers", []):
+        if srv["name"] == server:
+            folder = srv["folder"]
+            break
+    if not folder:
+        return {"content": ""}
+    readme = MCP_SERVERS_DIR / folder / "README.md"
+    return {"content": readme.read_text() if readme.exists() else ""}
+
+
+# ── Model resolution ─────────────────────────────────────────────────────────
+
+def _resolve_model(display_name: str) -> str | None:
+    """Return model_string for a display_name. Checks Ollama map first, then external APIs."""
+    if _model_map and display_name in _model_map:
+        return _model_map[display_name]
+    # External models: read fresh (allows hot-reload after saving API keys)
+    for m in get_external_models(load_external_apis()):
+        if m["display_name"] == display_name:
+            return m["model_string"]
+    return None
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -207,6 +270,104 @@ async def api_config_post(body: ConfigWriteBody):
     return {"ok": True}
 
 
+# ── External APIs ─────────────────────────────────────────────────────────────
+
+@app.get("/api/external-apis")
+async def api_external_apis_get():
+    data = load_external_apis()
+    # Mask API keys — return only whether they're set, not the value
+    masked = {}
+    for provider, pcfg in data.items():
+        masked[provider] = {
+            "enabled": pcfg.get("enabled", False),
+            "has_key": bool(pcfg.get("api_key", "").strip()),
+        }
+    return masked
+
+
+class ExternalAPISaveBody(BaseModel):
+    anthropic_key: str = ""
+    anthropic_enabled: bool = False
+    openai_key: str = ""
+    openai_enabled: bool = False
+    huggingface_key: str = ""
+    huggingface_enabled: bool = False
+
+
+@app.post("/api/external-apis")
+async def api_external_apis_post(body: ExternalAPISaveBody):
+    existing = load_external_apis()
+
+    # Preserve existing key if the new value is blank (user didn't change it)
+    def resolve_key(new_key: str, provider: str) -> str:
+        if new_key.strip():
+            return new_key.strip()
+        return existing.get(provider, {}).get("api_key", "")
+
+    data = {
+        "anthropic": {
+            "api_key": resolve_key(body.anthropic_key, "anthropic"),
+            "enabled": body.anthropic_enabled,
+        },
+        "openai": {
+            "api_key": resolve_key(body.openai_key, "openai"),
+            "enabled": body.openai_enabled,
+        },
+        "huggingface": {
+            "api_key": resolve_key(body.huggingface_key, "huggingface"),
+            "enabled": body.huggingface_enabled,
+        },
+    }
+    save_external_apis(data)
+    return {"ok": True}
+
+
+# ── HuggingFace availability check ────────────────────────────────────────────
+
+@app.get("/api/hf/check")
+async def api_hf_check():
+    """Concurrently probe each configured HF model with a 1-token request.
+    Returns {model_id: 'available' | 'unauthorized' | 'not_found' | 'error'}.
+    """
+    import httpx
+    external_apis = load_external_apis()
+    hf = external_apis.get("huggingface", {})
+    if not hf.get("enabled") or not hf.get("api_key"):
+        return {}
+
+    api_key = hf["api_key"]
+    model_list = hf.get("models", _DEFAULT_HF_MODELS)
+
+    async def check(model_id: str) -> tuple[str, str]:
+        payload = {
+            "model": model_id,
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 1,
+            "temperature": 0.1,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=12.0) as client:
+                r = await client.post(
+                    "https://router.huggingface.co/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if r.status_code == 200:
+                return model_id, "available"
+            if r.status_code in (401, 403):
+                return model_id, "unauthorized"
+            if r.status_code == 404:
+                return model_id, "not_found"
+            if r.status_code == 422:
+                return model_id, "available"  # model reached, just rejected our minimal input
+            return model_id, "error"
+        except Exception:
+            return model_id, "error"
+
+    results = await asyncio.gather(*[check(m["model_id"]) for m in model_list])
+    return dict(results)
+
+
 # ── Chat (SSE) ────────────────────────────────────────────────────────────────
 
 class ChatBody(BaseModel):
@@ -222,11 +383,12 @@ def _sse(event: str, data: dict) -> str:
 
 
 async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
-    if not _model_map or body.model not in _model_map:
+    model_string = _resolve_model(body.model)
+    if not model_string:
         yield _sse("error", {"message": f"Unknown model: {body.model}"})
         return
 
-    ollama_model = _model_map[body.model]
+    external_apis = load_external_apis()
     cfg = _cfg
     if body.max_iterations is not None:
         import copy
@@ -241,7 +403,7 @@ async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
     def run_in_thread():
         from agent.loop import run as agent_run
         try:
-            for token in agent_run(body.message, body.history, ollama_model, cfg, sm, body.disabled_servers):
+            for token in agent_run(body.message, body.history, model_string, cfg, sm, body.disabled_servers, external_apis):
                 asyncio.run_coroutine_threadsafe(queue.put(token), loop).result()
         except Exception as e:
             asyncio.run_coroutine_threadsafe(
@@ -422,7 +584,7 @@ async def _csv_bulk_generator(body: CSVRunBody) -> AsyncGenerator[str, None]:
       drift_warning  {row, consecutive_failures, message}   — terminal on drift
       bulk_done   {total, success_count, failed_count}      — terminal on clean finish
     """
-    if not _model_map or body.model not in _model_map:
+    if not _resolve_model(body.model):
         yield _sse("error", {"message": f"Unknown model: {body.model}"})
         return
 

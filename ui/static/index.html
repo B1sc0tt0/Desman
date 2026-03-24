@@ -761,6 +761,7 @@ body {
 }
 #drift-banner strong { color: var(--amber); }
 #drift-banner .drift-stats {
+  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--muted);
@@ -783,6 +784,132 @@ body {
   border-radius: 4px;
   padding: 1px 6px;
 }
+
+/* Sub-tabs inside the config panel */
+.cfg-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cfg-tab-btn {
+  padding: 6px 14px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.cfg-tab-btn:hover { color: var(--ink); }
+.cfg-tab-btn.active { color: var(--ink); border-bottom-color: var(--blue); }
+
+.cfg-panel { display: none; flex-direction: column; gap: var(--sp-3); flex: 1; overflow-y: auto; min-height: 0; }
+.cfg-panel.active { display: flex; }
+
+/* External APIs */
+.api-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--cream-dim);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.api-card:focus-within { border-color: var(--blue); }
+.api-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.api-card-title { display: flex; align-items: center; gap: var(--sp-2); }
+.api-card-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.api-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.api-badge-anthropic { background: color-mix(in oklch, var(--red) 14%, transparent); color: var(--red); }
+.api-badge-openai    { background: color-mix(in oklch, var(--green-connected) 14%, transparent); color: oklch(55% 0.18 152); }
+.api-badge-hf        { background: color-mix(in oklch, var(--amber) 16%, transparent); color: oklch(62% 0.16 65); }
+.api-key-row { display: flex; gap: var(--sp-2); align-items: center; }
+.api-key-input {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--cream);
+  color: var(--ink);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.api-key-input:focus-visible { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px oklch(66% 0.22 255 / 0.20); }
+.api-key-input::placeholder { color: var(--subtle); }
+.api-card-hint { font-size: 11px; color: var(--muted); margin: 0; }
+
+/* Toggle switch */
+.api-toggle { position: relative; display: inline-block; width: 38px; height: 21px; cursor: pointer; flex-shrink: 0; }
+.api-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.api-toggle-slider {
+  position: absolute; inset: 0; border-radius: 11px;
+  background: var(--border);
+  transition: background 200ms var(--ease-out);
+}
+.api-toggle-slider::before {
+  content: ''; position: absolute;
+  width: 15px; height: 15px; left: 3px; top: 3px;
+  border-radius: 50%; background: var(--cream);
+  transition: transform 200ms var(--ease-out);
+}
+.api-toggle input:checked + .api-toggle-slider { background: var(--blue); }
+.api-toggle input:checked + .api-toggle-slider::before { transform: translateX(17px); }
+.api-toggle input:focus-visible + .api-toggle-slider {
+  outline: 2px solid var(--blue); outline-offset: 2px;
+}
+
+#ext-api-actions { display: flex; gap: var(--sp-2); align-items: center; flex-shrink: 0; }
+#ext-api-status { font-size: 12px; color: var(--subtle); }
+#ext-api-status.ok    { color: var(--green-connected); animation: status-pop 280ms cubic-bezier(0.16, 1, 0.3, 1); }
+#ext-api-status.error { color: var(--red); }
+
+/* MCP Details panel */
+.cfg-srv-item { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.cfg-srv-header {
+  width: 100%; display: flex; align-items: center; gap: var(--sp-2);
+  padding: 10px var(--sp-3); background: var(--cream-dim);
+  border: none; cursor: pointer; text-align: left;
+  font-family: var(--font-ui); font-size: 13px;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.cfg-srv-header:hover { background: color-mix(in oklch, var(--blue) 6%, var(--cream-dim)); }
+.cfg-srv-name { font-weight: 600; color: var(--ink); flex: 1; }
+.cfg-srv-tool-count { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+.cfg-srv-chevron { font-size: 11px; color: var(--muted); transition: transform 180ms var(--ease-out); }
+.cfg-srv-item.open .cfg-srv-chevron { transform: rotate(180deg); }
+.cfg-srv-body { padding: var(--sp-3); border-top: 1px solid var(--border); background: var(--cream); }
+.cfg-tool-grid {
+  display: flex; flex-wrap: wrap; gap: 5px;
+}
+.cfg-tool-pill {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 2px 8px; border-radius: 3px;
+  background: var(--cream-dim); border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* Advanced (YAML editor) */
+#cfg-panel-advanced { gap: var(--sp-3); }
 #yaml-editor {
   flex: 1;
   font-family: var(--font-mono);
@@ -798,9 +925,115 @@ body {
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 #yaml-editor:focus-visible { border-color: var(--blue); outline: none; }
-
 #config-actions { display: flex; gap: var(--sp-2); align-items: center; flex-shrink: 0; }
 #config-status { font-size: 12px; color: var(--subtle); margin-left: auto; }
+
+/* MCP Details — enhanced */
+.cfg-mcp-layout { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1; min-height: 0; overflow: hidden; }
+.cfg-srv-readme {
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--muted); background: var(--cream);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: var(--sp-2) var(--sp-3); white-space: pre-wrap;
+  max-height: 100px; overflow-y: auto; margin-top: var(--sp-1);
+}
+button.cfg-tool-pill {
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--cream); font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); padding: 2px 8px; border-radius: 3px;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  text-align: left;
+}
+button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
+.cfg-tool-detail {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--cream-dim); padding: var(--sp-3);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  flex-shrink: 0;
+}
+.cfg-tool-detail-header {
+  display: flex; align-items: center; gap: var(--sp-2);
+}
+.cfg-tool-detail-name {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+  color: var(--blue); flex: 1;
+}
+.cfg-tool-detail-close {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px;
+}
+.cfg-tool-detail-close:hover { color: var(--ink); }
+.cfg-tool-detail-desc {
+  font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5;
+}
+.cfg-param-table {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+}
+.cfg-param-table th {
+  text-align: left; font-family: var(--font-ui); font-weight: 700;
+  color: var(--subtle); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 3px 6px; border-bottom: 1px solid var(--border);
+}
+.cfg-param-table td { padding: 4px 6px; vertical-align: top; color: var(--muted); }
+.cfg-param-table tr:not(:last-child) td { border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.cfg-param-table td:first-child { font-family: var(--font-mono); color: var(--ink); white-space: nowrap; }
+.cfg-param-table td:nth-child(2) { font-family: var(--font-mono); white-space: nowrap; }
+.cfg-param-req { color: var(--blue); font-weight: 700; }
+.cfg-param-no-params { font-size: 11px; color: var(--subtle); font-style: italic; }
+
+/* Local Models help tab */
+.help-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--cream-dim);
+}
+.help-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+.help-text {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.help-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+}
+.help-model-grid { display: flex; flex-direction: column; gap: 4px; }
+.help-model-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: 12px;
+}
+.help-model-row code { font-size: 11px; flex-shrink: 0; color: var(--blue); }
+.help-model-row span { color: var(--muted); }
+.help-hw { font-family: var(--font-mono); font-size: 11px; flex-shrink: 0; color: var(--ink); min-width: 180px; }
+
+/* Provider badge in model selector */
+.model-provider-badge {
+  font-size: 10px; font-family: var(--font-mono);
+  padding: 1px 5px; border-radius: 3px; margin-left: 5px;
+  vertical-align: middle;
+}
 
 /* ── Buttons ──────────────────────────────────────────────────── */
 .btn {
@@ -836,6 +1069,8 @@ body {
   border: 1px solid var(--border);
 }
 .btn-ghost:hover:not(:disabled) { background: var(--cream-dim); color: var(--ink); border-color: var(--border-dim); }
+.btn-ghost:active:not(:disabled) { background: var(--cream-dim); color: var(--muted); transform: translateY(0); }
+.btn-sm { font-size: 11px; padding: 4px 10px; }
 
 .btn-group { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
 
@@ -915,6 +1150,11 @@ body {
   box-shadow: 0 2px 6px oklch(54% 0.24 22 / 0.15);
 }
 .prompt-pill:active { opacity: 0.7; }
+.prompt-pill:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-color: var(--red);
+}
 
 /* ── CSV tool-call chip ───────────────────────────────────────── */
 .csv-tc {
@@ -941,7 +1181,7 @@ body {
 .csv-tc.fd              { background: var(--red-dim); color: var(--red); }
 
 /* ── Config status feedback colors ───────────────────────────── */
-#config-status.ok    { color: var(--green-connected); animation: status-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+#config-status.ok    { color: var(--green-connected); animation: status-pop 280ms cubic-bezier(0.16, 1, 0.3, 1); }
 #config-status.error { color: var(--red); }
 @keyframes status-pop { from { transform: scale(0.85); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #config-status.ok { animation: none; } }
@@ -985,6 +1225,7 @@ body {
   --blue-dim:         oklch(20% 0.08 255);
   --green:            oklch(64% 0.20 152);
   --green-connected:  oklch(78% 0.24 152);
+  --amber:            oklch(76% 0.16 68);
   --shadow-sm:        0 1px 3px oklch(0% 0 0 / 0.3), 0 4px 12px oklch(0% 0 0 / 0.2);
 }
 
@@ -1080,7 +1321,7 @@ body {
 <nav id="tabs" role="tablist">
   <button class="tab-btn active" data-tab="chat" role="tab" aria-selected="true">Chat</button>
   <button class="tab-btn" data-tab="csv"  role="tab" aria-selected="false">CSV Import</button>
-  <button class="tab-btn" data-tab="config" role="tab" aria-selected="false">Config</button>
+  <button class="tab-btn" data-tab="config" role="tab" aria-selected="false">Settings</button>
 </nav>
 
 <!-- Main -->
@@ -1097,7 +1338,7 @@ body {
         <div class="welcome-rule"></div>
         <div class="welcome-body">
           <div class="welcome-title">Ready.</div>
-          <p class="welcome-text">Connected to Freshdesk and Freshservice via MCP. Ask about tickets, changes, problems, assets, or the knowledge base.</p>
+          <p class="welcome-text">Freshdesk and Freshservice are connected. Ask about tickets, changes, assets, or the knowledge base — the agent picks the right tool automatically.</p>
           <div class="welcome-prompts" aria-label="Example queries">
             <button class="prompt-pill">List open tickets</button>
             <button class="prompt-pill">Search knowledge base for VPN</button>
@@ -1119,7 +1360,7 @@ body {
   <!-- CSV -->
   <div id="panel-csv" class="panel" role="tabpanel">
     <div class="panel-heading">CSV Import</div>
-    <p class="panel-sub">Upload a CSV to bulk-create Freshdesk tickets or Freshservice assets. The agent processes each row individually via MCP tools.</p>
+    <p class="panel-sub">Bulk-create Freshdesk tickets or Freshservice assets from a CSV file. The agent processes each row automatically and reports what it did.</p>
 
     <div class="import-type-selector" role="group" aria-label="Import type">
       <button class="import-type-btn active" data-type="freshdesk_tickets">Freshdesk Tickets</button>
@@ -1134,7 +1375,7 @@ body {
     <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-label="Upload CSV file">
       <div class="dz-icon">📄</div>
       <div class="dz-text">Drop a CSV file here or <strong>click to browse</strong></div>
-      <div class="dz-sub">UTF-8 · Latin-1 · BOM-safe</div>
+      <div class="dz-sub">Most CSV encodings accepted</div>
       <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none" aria-hidden="true">
     </div>
 
@@ -1158,13 +1399,122 @@ body {
 
   <!-- Config -->
   <div id="panel-config" class="panel" role="tabpanel">
-    <div class="panel-heading">Configuration</div>
-    <p class="panel-sub">Edit <code>config/config.local.yaml</code>. Changes take effect on the next server restart.</p>
-    <textarea id="yaml-editor" spellcheck="false" aria-label="YAML configuration editor"></textarea>
-    <div id="config-actions">
-      <button class="btn btn-primary" id="config-save-btn">Save</button>
-      <button class="btn btn-ghost"   id="config-reload-btn">Reload</button>
-      <span id="config-status" aria-live="polite"></span>
+    <div class="panel-heading">Settings</div>
+
+    <div class="cfg-tabs" role="tablist">
+      <button class="cfg-tab-btn active" data-cfg-tab="external" role="tab" aria-selected="true">External APIs</button>
+      <button class="cfg-tab-btn" data-cfg-tab="mcp" role="tab" aria-selected="false">MCP Details</button>
+      <button class="cfg-tab-btn" data-cfg-tab="advanced" role="tab" aria-selected="false">Config File</button>
+      <button class="cfg-tab-btn" data-cfg-tab="models" role="tab" aria-selected="false">Local Models</button>
+    </div>
+
+    <!-- External APIs -->
+    <div id="cfg-panel-external" class="cfg-panel active">
+      <p class="panel-sub">Add API keys to run cloud-hosted models alongside your local ones. Keys are saved on this machine only and never sent anywhere else.</p>
+
+      <div class="api-card" id="api-card-huggingface">
+        <div class="api-card-header">
+          <div class="api-card-title">
+            <span class="api-badge api-badge-hf">HuggingFace</span>
+            <span class="api-card-name">Inference API</span>
+          </div>
+          <label class="api-toggle" aria-label="Enable HuggingFace">
+            <input type="checkbox" id="huggingface-enabled">
+            <span class="api-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="api-key-row">
+          <input type="password" id="huggingface-key" class="api-key-input" placeholder="hf_…" autocomplete="off" spellcheck="false">
+          <button class="btn btn-ghost btn-sm" id="huggingface-key-show" type="button">Show</button>
+        </div>
+        <p class="api-card-hint">Free tier available · Adds Llama 3.3 70B, Qwen 2.5 72B, Gemma 27B, Mistral, Mixtral and more</p>
+      </div>
+
+      <div id="ext-api-actions">
+        <button class="btn btn-primary" id="ext-api-save-btn">Save &amp; Apply</button>
+        <span id="ext-api-status" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <!-- MCP Details -->
+    <div id="cfg-panel-mcp" class="cfg-panel">
+      <p class="panel-sub">View connected servers and their tools. Click any tool to see its description and parameters — useful for understanding what the agent can do.</p>
+      <div class="cfg-mcp-layout">
+        <div id="cfg-mcp-list" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:var(--sp-2)"></div>
+        <div id="cfg-tool-detail" hidden class="cfg-tool-detail">
+          <div class="cfg-tool-detail-header">
+            <span class="cfg-tool-detail-name" id="cfg-td-name"></span>
+            <button class="cfg-tool-detail-close" id="cfg-td-close" aria-label="Close">×</button>
+          </div>
+          <p class="cfg-tool-detail-desc" id="cfg-td-desc"></p>
+          <div id="cfg-td-params"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Local Models -->
+    <div id="cfg-panel-models" class="cfg-panel">
+      <p class="panel-sub">How to download and add local models using Ollama. Config changes need a server restart to take effect.</p>
+
+      <div class="help-section">
+        <div class="help-section-title">1 — Find a model</div>
+        <p class="help-text">Browse <code>ollama.com/library</code> for available models. Recommended for tool use:</p>
+        <div class="help-model-grid">
+          <div class="help-model-row"><code>llama3.2:3b</code><span>Fast · low RAM · good for Pi / constrained laptops</span></div>
+          <div class="help-model-row"><code>llama3.1:8b</code><span>Balanced · best quality/speed on 16 GB machines</span></div>
+          <div class="help-model-row"><code>qwen2.5:7b</code><span>Strong tool calling · recommended for MCP workflows</span></div>
+          <div class="help-model-row"><code>mistral:7b</code><span>Good structured output · reasoning tasks</span></div>
+          <div class="help-model-row"><code>qwen2.5:14b</code><span>Higher quality · needs 16 GB+ RAM</span></div>
+          <div class="help-model-row"><code>qwen2.5:32b</code><span>Best local quality · needs 32 GB+ RAM</span></div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">2 — Pull the model</div>
+        <p class="help-text">Run this in your terminal. Ollama must be running.</p>
+        <pre class="help-code">ollama pull llama3.2:3b</pre>
+        <p class="help-text">To list what you already have locally:</p>
+        <pre class="help-code">ollama list</pre>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">3 — Add it to config.local.yaml</div>
+        <p class="help-text">Open the <strong>Config File</strong> tab and add an entry under <code>models:</code>:</p>
+        <pre class="help-code">models:
+  - display_name: "My Model Name"
+    ollama_model: "llama3.2:3b"
+    description: "Optional description shown in UI"</pre>
+        <p class="help-text">The <code>display_name</code> is what appears in the model selector. Set <code>default_model</code> under <code>agent:</code> to the <code>ollama_model</code> value to make it the default on load.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Import a GGUF model (e.g. from HuggingFace)</div>
+        <p class="help-text">Download a <code>.gguf</code> file, then create a Modelfile and import it:</p>
+        <pre class="help-code">echo "FROM /path/to/model.gguf" > Modelfile
+ollama create my-model -f Modelfile</pre>
+        <p class="help-text">Then add <code>my-model</code> as the <code>ollama_model</code> value in config.local.yaml.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Hardware guidance</div>
+        <div class="help-model-grid">
+          <div class="help-model-row"><span class="help-hw">Raspberry Pi 5 (8 GB)</span><span>3B models only</span></div>
+          <div class="help-model-row"><span class="help-hw">MacBook Air M1 (16 GB)</span><span>Up to 8B comfortable</span></div>
+          <div class="help-model-row"><span class="help-hw">Mac Mini M4 (16 GB)</span><span>Up to 13B fine, 30B feasible</span></div>
+          <div class="help-model-row"><span class="help-hw">32 GB+</span><span>30B–70B quantised models</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config File (Advanced) -->
+    <div id="cfg-panel-advanced" class="cfg-panel">
+      <p class="panel-sub">Edit your configuration directly. Save here, then restart the server for changes to take effect.</p>
+      <textarea id="yaml-editor" spellcheck="false" aria-label="YAML configuration editor"></textarea>
+      <div id="config-actions">
+        <button class="btn btn-primary" id="config-save-btn">Save</button>
+        <button class="btn btn-ghost"   id="config-reload-btn">Reload</button>
+        <span id="config-status" aria-live="polite"></span>
+      </div>
     </div>
   </div>
 
@@ -1189,6 +1539,7 @@ body {
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 const $  = id => document.getElementById(id);
+const $n = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => {
   const e = document.createElement(tag);
   Object.assign(e, props);
@@ -1218,27 +1569,66 @@ async function loadModels() {
     const sel = $('model-select');
     sel.innerHTML = '';
 
-    const curated = models.filter(m => m.curated);
-    const extra   = models.filter(m => !m.curated);
+    const local       = models.filter(m => m.curated && !m.provider);
+    const extra       = models.filter(m => !m.curated);
+    const anthropic   = models.filter(m => m.provider === 'anthropic');
+    const openai      = models.filter(m => m.provider === 'openai');
+    const huggingface = models.filter(m => m.provider === 'huggingface');
 
-    if (curated.length) {
-      const og = el('optgroup'); og.label = 'Configured models';
-      curated.forEach(m => {
+    const addGroup = (label, items, nameKey) => {
+      if (!items.length) return;
+      const og = el('optgroup'); og.label = label;
+      items.forEach(m => {
+        const o = el('option', {value: m.display_name, textContent: m[nameKey] || m.display_name});
+        if (m.display_name === def) o.selected = true;
+        og.appendChild(o);
+      });
+      sel.appendChild(og);
+    };
+
+    addGroup('Local — Ollama', local, 'display_name');
+    addGroup('Anthropic — Claude', anthropic, 'display_name');
+    addGroup('OpenAI — GPT', openai, 'display_name');
+    if (huggingface.length) {
+      const og = el('optgroup'); og.label = 'HuggingFace';
+      huggingface.forEach(m => {
         const o = el('option', {value: m.display_name, textContent: m.display_name});
+        o.dataset.modelId      = (m.ollama_model || '').replace(/^huggingface:/, '');
+        o.dataset.displayName  = m.display_name;
         if (m.display_name === def) o.selected = true;
         og.appendChild(o);
       });
       sel.appendChild(og);
     }
-    if (extra.length) {
-      const og = el('optgroup'); og.label = 'Other local models';
-      extra.forEach(m => {
-        const o = el('option', {value: m.display_name, textContent: m.ollama_model});
-        og.appendChild(o);
-      });
-      sel.appendChild(og);
-    }
+    addGroup('Other local models', extra, 'ollama_model');
   } catch(e) { console.error('models:', e); }
+}
+
+/* ── HuggingFace availability ─────────────────────────────────── */
+async function loadHFAvailability() {
+  try {
+    const results = await fetch('/api/hf/check').then(r => r.json());
+    document.querySelectorAll('#model-select option[data-model-id]').forEach(opt => {
+      const name   = opt.dataset.displayName || opt.value;
+      const status = results[opt.dataset.modelId];
+      if (status === 'unauthorized') {
+        opt.disabled = true;
+        opt.textContent = `${name} — accept license on huggingface.co`;
+      } else if (status === 'not_found' || status === 'error') {
+        opt.disabled = true;
+        opt.textContent = `${name} — not available on free tier`;
+      } else {
+        opt.disabled = false;
+        opt.textContent = name;
+      }
+    });
+  } catch(e) {
+    // On failure, clear checking state so models remain selectable
+    document.querySelectorAll('#model-select option[data-model-id]').forEach(opt => {
+      opt.textContent = opt.dataset.displayName || opt.value;
+    });
+    console.error('hf-check:', e);
+  }
 }
 
 /* ── MCP status ───────────────────────────────────────────────── */
@@ -1252,7 +1642,9 @@ async function loadMCP() {
     servers.forEach(s => {
       const ignored = S.disabledServers.has(s.name);
       const p = el('div', {className: 's-pill' + (ignored ? ' ignored' : '')});
-      p.innerHTML = `<span class="s-dot ${ignored ? 'disabled' : s.status}"></span>${ignored ? `<s>${s.name}</s>` : s.name}`;
+      p.appendChild(el('span', {className: `s-dot ${ignored ? 'disabled' : s.status}`}));
+      if (ignored) { const strike = document.createElement('s'); strike.textContent = s.name; p.appendChild(strike); }
+      else { p.appendChild(document.createTextNode(s.name)); }
       pills.appendChild(p);
     });
     const activeTools = servers
@@ -1268,15 +1660,22 @@ async function loadMCP() {
       const hasTools = s.tools && s.tools.length > 0;
       const block = el('div', {className: 'mcp-block'});
       const row = el('div', {className: 'mcp-row' + (ignored ? ' ignored' : '')});
-      row.innerHTML = `
-        <span class="dot ${s.status}"></span>
-        <span class="mcp-name">${s.name}</span>
-        <span class="mcp-count">${ignored ? 'off' : (s.tool_count ? s.tool_count + ' tools' : s.status)}</span>
-        ${hasTools ? `<button class="mcp-chevron" aria-label="Show tools for ${s.name}" data-server="${s.name}">&#9658;</button>` : ''}
-        <button class="server-toggle ${ignored ? '' : 'on'}"
-                aria-label="Toggle ${s.name}"
-                aria-pressed="${!ignored}"
-                data-server="${s.name}"></button>`;
+      row.append(
+        el('span', {className: `dot ${s.status}`}),
+        el('span', {className: 'mcp-name', textContent: s.name}),
+        el('span', {className: 'mcp-count', textContent: ignored ? 'off' : (s.tool_count ? `${s.tool_count} tools` : s.status)}),
+      );
+      if (hasTools) {
+        const chevBtn = el('button', {className: 'mcp-chevron', textContent: '▶'});
+        chevBtn.setAttribute('aria-label', `Show tools for ${s.name}`);
+        chevBtn.dataset.server = s.name;
+        row.appendChild(chevBtn);
+      }
+      const toggleBtn = el('button', {className: `server-toggle${ignored ? '' : ' on'}`});
+      toggleBtn.setAttribute('aria-label', `Toggle ${s.name}`);
+      toggleBtn.setAttribute('aria-pressed', String(!ignored));
+      toggleBtn.dataset.server = s.name;
+      row.appendChild(toggleBtn);
       block.appendChild(row);
       if (hasTools) {
         const toolList = el('div', {className: 'mcp-tools'});
@@ -1327,12 +1726,12 @@ function recordActivity(toolName) {
   const fd = serverAccent(toolName) ? ' fd' : '';
 
   const item = el('div', {className: 'act-item'});
-  item.innerHTML = `
-    <div class="act-bar${fd}"></div>
-    <div class="act-body">
-      <div class="act-tool${fd}">${toolName}</div>
-      <div class="act-time">${fmt(Date.now())}</div>
-    </div>`;
+  const actBody = el('div', {className: 'act-body'});
+  actBody.append(
+    el('div', {className: `act-tool${fd}`, textContent: toolName}),
+    el('div', {className: 'act-time',      textContent: fmt(Date.now())}),
+  );
+  item.append(el('div', {className: `act-bar${fd}`}), actBody);
   feed.insertBefore(item, feed.firstChild);
   while (feed.children.length > 60) feed.removeChild(feed.lastChild);
 }
@@ -1357,12 +1756,9 @@ function addMsg(role) {
 function addToolCall(name) {
   const fd = serverAccent(name) ? ' fd' : '';
   const row = el('div', {className: 'tool-call-row'});
-  row.innerHTML = `
-    <div class="tc-bar${fd}"></div>
-    <div class="tc-label${fd}">
-      <span>Calling</span>
-      <span class="tc-name${fd}">${name}</span>
-    </div>`;
+  const tcLabel = el('div', {className: `tc-label${fd}`});
+  tcLabel.append(el('span', {textContent: 'Calling'}), el('span', {className: `tc-name${fd}`, textContent: name}));
+  row.append(el('div', {className: `tc-bar${fd}`}), tcLabel);
   $('chat-messages').appendChild(row);
   scrollBottom();
 }
@@ -1388,12 +1784,18 @@ async function sendMessage() {
   S.streaming = true;
 
   let reply = '';
+  const controller   = new AbortController();
+  let lastEventTime  = Date.now();
+  const timeoutTimer = setInterval(() => {
+    if (Date.now() - lastEventTime > 30_000) controller.abort();
+  }, 5_000);
 
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({message: text, model, history: S.history.slice(0,-1), disabled_servers: [...S.disabledServers]}),
+      signal: controller.signal,
     });
 
     const reader  = res.body.getReader();
@@ -1403,6 +1805,7 @@ async function sendMessage() {
     while (true) {
       const {done, value} = await reader.read();
       if (done) break;
+      lastEventTime = Date.now();
       buf += decoder.decode(value, {stream:true});
       const parts = buf.split('\n\n');
       buf = parts.pop();
@@ -1423,8 +1826,11 @@ async function sendMessage() {
       }
     }
   } catch(e) {
-    bubble.textContent = '⚠ ' + e.message;
+    bubble.textContent = e.name === 'AbortError'
+      ? '⚠ Request timed out — the server stopped responding. Please try again.'
+      : '⚠ ' + e.message;
   } finally {
+    clearInterval(timeoutTimer);
     bubble.classList.remove('streaming');
     S.history.push({role:'assistant', content: reply || bubble.textContent});
     S.streaming = false;
@@ -1482,11 +1888,11 @@ $('load-example-btn').addEventListener('click', async () => {
   if (!filename) return;
   try {
     const res = await fetch(`/api/examples/${filename}`);
-    if (!res.ok) { alert(`Example file not found: ${filename}`); return; }
+    if (!res.ok) { alert('Example file not found. Make sure the server is running and try again.'); return; }
     const blob = await res.blob();
     const file = new File([blob], filename, { type: 'text/csv' });
     await uploadCSV(file);
-  } catch (e) { alert('Could not load example: ' + e.message); }
+  } catch (e) { alert('Could not load example — check your connection and try again.'); }
 });
 
 /* ── CSV ──────────────────────────────────────────────────────── */
@@ -1505,14 +1911,18 @@ dropZone.addEventListener('drop',      e  => {
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) uploadCSV(fileInput.files[0]); });
 
 async function uploadCSV(file) {
+  if (file.size > 5_000_000) {
+    alert('File too large (max 5 MB). Please split your CSV into smaller files.');
+    return;
+  }
   const form = new FormData();
   form.append('file', file);
   try {
     const r = await fetch('/api/csv/preview', {method:'POST', body:form});
-    if (!r.ok) { alert('Parse error: ' + await r.text()); return; }
+    if (!r.ok) { alert('Could not read this CSV — ' + await r.text()); return; }
     S.csvData = await r.json();
     renderPreview(S.csvData);
-  } catch(e) { alert('Upload failed: ' + e.message); }
+  } catch(e) { alert('Upload failed — check your connection and try again.'); }
 }
 
 function renderPreview(d) {
@@ -1552,7 +1962,9 @@ $('csv-run-btn').addEventListener('click', async () => {
   drift.innerHTML    = '';
   drift.style.display = 'none';
   progress.style.display = '';
-  $('csv-run-btn').disabled = true;
+  const runBtn = $('csv-run-btn');
+  runBtn.disabled = true;
+  runBtn.textContent = 'Running…';
 
   /* Bulk mode: map row number → DOM row item element */
   const rowItems = {};
@@ -1581,11 +1993,11 @@ $('csv-run-btn').addEventListener('click', async () => {
     } else if (p.tool_called && p.tool_error) {
       r.item.classList.add('error');
       r.statusSpan.textContent = '✗';
-      r.textSpan.textContent = ' tool error';
+      r.textSpan.textContent = ' — tool failed';
     } else {
       r.item.classList.add('error');
       r.statusSpan.textContent = '✗';
-      r.textSpan.textContent = ' no tool called';
+      r.textSpan.textContent = ' — no action taken';
     }
   }
 
@@ -1658,13 +2070,16 @@ $('csv-run-btn').addEventListener('click', async () => {
           }
           else if (event === 'drift_warning') {
             drift.style.display = '';
-            drift.innerHTML =
-              `<strong>⚠ Drift detected</strong> — model has not called tools for ` +
-              `<strong>${p.consecutive_failures} consecutive rows</strong> (at row ${p.row}). ` +
-              `Import is continuing but results may be incomplete.<br>` +
-              `<span class="drift-stats">` +
-              `${p.success_count} succeeded · ${p.failed_count} failed so far` +
-              `</span>`;
+            drift.innerHTML = '';
+            const br = document.createElement('br');
+            drift.append(
+              el('strong', {textContent: '⚠ Warning'}),
+              document.createTextNode(` — the agent skipped tools for `),
+              el('strong', {textContent: `${p.consecutive_failures} rows in a row`}),
+              document.createTextNode(` (last at row ${p.row}). Those rows may not have been imported. Import is continuing.`),
+              br,
+              el('span', {className: 'drift-stats', textContent: `${p.success_count} succeeded · ${p.failed_count} failed so far`}),
+            );
           }
         } catch {}
       }
@@ -1673,11 +2088,213 @@ $('csv-run-btn').addEventListener('click', async () => {
     output.innerHTML = '';
     output.appendChild(document.createTextNode('⚠ Error: ' + e.message));
   } finally {
-    $('csv-run-btn').disabled = false;
+    runBtn.disabled = false;
+    runBtn.textContent = 'Run Import';
   }
 });
 
-/* ── Config ───────────────────────────────────────────────────── */
+/* ── Config sub-tabs ──────────────────────────────────────────── */
+document.querySelectorAll('.cfg-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cfg-tab-btn').forEach(b => {
+      b.classList.remove('active'); b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.cfg-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
+    const panel = $('cfg-panel-' + btn.dataset.cfgTab);
+    if (panel) {
+      panel.classList.add('active');
+      if (btn.dataset.cfgTab === 'mcp') loadCfgMcpDetails();
+      if (btn.dataset.cfgTab === 'advanced') loadConfig();
+    }
+  });
+});
+
+/* ── External APIs ────────────────────────────────────────────── */
+async function loadExternalApis() {
+  try {
+    const data = await fetch('/api/external-apis').then(r => r.json());
+    const ant = data.anthropic || {};
+    const oai = data.openai    || {};
+    const hf  = data.huggingface || {};
+    $('huggingface-enabled').checked  = hf.enabled  || false;
+    $('huggingface-key').placeholder  = hf.has_key  ? '••••••••••••  (saved — leave blank to keep)' : 'hf_…';
+  } catch(e) { console.warn('external apis:', e); }
+}
+
+function flashExtStatus(msg, type = '') {
+  const s = $('ext-api-status');
+  s.textContent = msg; s.className = type || '';
+  setTimeout(() => { s.textContent = ''; s.className = ''; }, 5000);
+}
+
+$('ext-api-save-btn').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/external-apis', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        huggingface_key:     $('huggingface-key').value,
+        huggingface_enabled: $('huggingface-enabled').checked,
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      flashExtStatus('✓ Saved', 'ok');
+      $('huggingface-key').value = '';
+      await Promise.all([loadExternalApis(), loadModels()]);
+      loadHFAvailability();
+    } else {
+      flashExtStatus('⚠ ' + (d.detail || 'Error'), 'error');
+    }
+  } catch(e) { flashExtStatus('⚠ ' + e.message, 'error'); }
+});
+
+// Show/hide toggles for API key inputs
+[['huggingface-key-show', 'huggingface-key']].forEach(([btnId, inputId]) => {
+  $n(btnId)?.addEventListener('click', () => {
+    const inp = $(inputId);
+    const showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    $n(btnId).textContent = showing ? 'Show' : 'Hide';
+  });
+});
+
+/* ── MCP Details (collapsible + tool inspector) ───────────────── */
+let _mcpToolSchemas = {};
+let _lastToolPill = null;
+
+async function loadCfgMcpDetails() {
+  const container = $('cfg-mcp-list');
+  if (!container) return;
+  try {
+    const [{ servers }, schemas] = await Promise.all([
+      fetch('/api/mcp/status').then(r => r.json()),
+      fetch('/api/mcp/tools').then(r => r.json()),
+    ]);
+    _mcpToolSchemas = schemas;
+    container.innerHTML = '';
+
+    for (const srv of servers) {
+      const dot = srv.status === 'connected' ? 'var(--green-connected)' :
+                  srv.status === 'disabled'  ? 'var(--subtle)' : 'var(--red)';
+
+      // Fetch README async (don't block render)
+      let readmeText = '';
+      try {
+        const rd = await fetch(`/api/mcp/readme/${srv.name}`).then(r => r.json());
+        readmeText = (rd.content || '').trim();
+      } catch {}
+
+      const item = el('div', {className: 'cfg-srv-item'});
+      const toolSchemas = schemas[srv.name] || [];
+
+      // Header
+      const hdr = el('button', {className: 'cfg-srv-header'});
+      hdr.setAttribute('aria-expanded', 'false');
+      const dotSpan = document.createElement('span');
+      dotSpan.style.cssText = `width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;display:inline-block`;
+      hdr.append(
+        dotSpan,
+        el('span', {className: 'cfg-srv-name',       textContent: srv.name}),
+        el('span', {className: 'cfg-srv-tool-count', textContent: `${srv.tool_count} tools`}),
+        el('span', {className: 'cfg-srv-chevron',    textContent: '▾'}),
+      );
+
+      // Body
+      const body = el('div', {className: 'cfg-srv-body'});
+      body.hidden = true;
+      if (readmeText) {
+        body.appendChild(el('pre', {className: 'cfg-srv-readme', textContent: readmeText}));
+      }
+      const grid = el('div', {className: 'cfg-tool-grid'});
+      toolSchemas.forEach(t => {
+        const pill = el('button', {className: 'cfg-tool-pill', textContent: t.name});
+        pill.dataset.server = srv.name;
+        pill.dataset.tool   = t.name;
+        pill.addEventListener('click', () => showToolDetail(pill.dataset.server, pill.dataset.tool, pill));
+        grid.appendChild(pill);
+      });
+      body.appendChild(grid);
+
+      hdr.addEventListener('click', () => {
+        const open = !body.hidden;
+        body.hidden = open;
+        hdr.setAttribute('aria-expanded', String(!open));
+        item.classList.toggle('open', !open);
+      });
+
+      item.append(hdr, body);
+
+      container.appendChild(item);
+    }
+  } catch(e) { console.warn('cfg mcp:', e); }
+}
+
+function showToolDetail(serverName, toolName, activePill) {
+  const schemas = _mcpToolSchemas[serverName] || [];
+  const tool = schemas.find(t => t.name === toolName);
+  if (!tool) return;
+
+  // Toggle off if same pill clicked again
+  const detail = $('cfg-tool-detail');
+  if (!detail.hidden && $('cfg-td-name').textContent === tool.full_name) {
+    detail.hidden = true;
+    document.querySelectorAll('.cfg-tool-pill.active').forEach(p => p.classList.remove('active'));
+    return;
+  }
+
+  document.querySelectorAll('.cfg-tool-pill.active').forEach(p => p.classList.remove('active'));
+  activePill.classList.add('active');
+  _lastToolPill = activePill;
+
+  $('cfg-td-name').textContent = tool.full_name;
+  $('cfg-td-desc').textContent = tool.description || 'No description.';
+
+  const paramsDiv = $('cfg-td-params');
+  paramsDiv.innerHTML = '';
+  const props = tool.parameters?.properties || {};
+  const required = new Set(tool.parameters?.required || []);
+
+  if (!Object.keys(props).length) {
+    paramsDiv.appendChild(el('p', {className: 'cfg-param-no-params', textContent: 'No parameters.'}));
+  } else {
+    const table = el('table', {className: 'cfg-param-table'});
+    const thead = el('thead');
+    const hrow = el('tr');
+    ['Parameter','Type','Required','Description'].forEach(h => hrow.appendChild(el('th', {textContent: h})));
+    thead.appendChild(hrow);
+    const tbody = el('tbody');
+    Object.entries(props).forEach(([pName, pDef]) => {
+      const tr = el('tr');
+      const reqCell = el('td');
+      reqCell.style.textAlign = 'center';
+      if (required.has(pName)) reqCell.appendChild(el('span', {className: 'cfg-param-req', textContent: '✓'}));
+      else reqCell.textContent = '—';
+      tr.append(
+        el('td', {textContent: pName}),
+        el('td', {textContent: pDef.type || (pDef.enum ? 'enum' : '')}),
+        reqCell,
+        el('td', {textContent: pDef.description || ''}),
+      );
+      tbody.appendChild(tr);
+    });
+    table.append(thead, tbody);
+    paramsDiv.appendChild(table);
+  }
+
+  detail.hidden = false;
+  $('cfg-td-close').focus();
+}
+
+$('cfg-td-close')?.addEventListener('click', () => {
+  $('cfg-tool-detail').hidden = true;
+  document.querySelectorAll('.cfg-tool-pill.active').forEach(p => p.classList.remove('active'));
+  _lastToolPill?.focus();
+  _lastToolPill = null;
+});
+
+/* ── Config (YAML — Advanced tab) ────────────────────────────── */
 async function loadConfig() {
   try {
     const r = await fetch('/api/config');
@@ -1692,7 +2309,7 @@ function setStatus(msg, type = '') {
   s.textContent = msg;
   s.className = type || '';
 }
-function flashStatus(msg, type = '') { setStatus(msg, type); setTimeout(() => setStatus(''), 2000); }
+function flashStatus(msg, type = '') { setStatus(msg, type); setTimeout(() => setStatus(''), 5000); }
 
 $('config-reload-btn').addEventListener('click', loadConfig);
 $('config-save-btn').addEventListener('click', async () => {
@@ -1782,7 +2399,8 @@ console.log(
   const taglineEl = document.querySelector('.logo-tagline');
   if (taglineEl) taglineEl.textContent = getTimeTagline();
 
-  await Promise.all([loadModels(), loadMCPWithBoot(), loadConfig()]);
+  await Promise.all([loadModels(), loadMCPWithBoot(), loadExternalApis()]);
+  loadHFAvailability(); // fire-and-forget: greys out inaccessible HF models async
   setInterval(loadMCP, 30_000);
 
   /* Typewriter on welcome title after a brief pause */
