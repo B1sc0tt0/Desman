@@ -1,0 +1,9 @@
+label,field_type,choices
+Customer Region,custom_dropdown,"North,South,East,West"
+Contract Number,custom_text,
+Escalation Required,custom_checkbox,
+Resolution Date,custom_date,
+Affected Users,custom_number,
+Support Tier,custom_dropdown,"Tier 1,Tier 2,Tier 3"
+Hardware Model,custom_text,
+Warranty Active,custom_checkbox,

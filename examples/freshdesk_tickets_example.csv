@@ -1,0 +1,8 @@
+subject,description,email,priority,status,type,tags
+Password reset not working,"User has tried resetting their password 3 times but never receives the reset email. Checked spam folder.",alice.johnson@acme.com,3,2,Problem,"login,password,account"
+Mobile app crashes on startup,"Since the v3.2 update the iOS app crashes immediately after the splash screen. Reproducible on iPhone 14.",bob.smith@globex.com,3,2,Incident,"mobile,crash,ios,app"
+How to export reports to PDF?,"Could you explain how to export the monthly analytics dashboard to PDF format for our board meetings?",carol.white@initech.com,1,2,Question,"reporting,export,pdf"
+Billing discrepancy on invoice #4521,"We were charged $299 instead of the agreed $199/month. Please review and issue a corrected invoice.",david.lee@umbrella.com,4,2,Problem,"billing,invoice,payment"
+Feature request: dark mode,"Multiple team members have requested a dark mode option in the dashboard. This would improve usability for long sessions.",emma.brown@soylent.com,1,2,Feature Request,"ui,ux,feature-request,dark-mode"
+VPN client won't connect after Windows update,"After the latest Windows 11 update (KB5031354) the VPN client shows error 789. Affects 4 users in finance.",frank.miller@duff.com,3,2,Incident,"vpn,windows,network,connectivity"
+Request for additional user licences,"We need to add 5 more agent seats to our account. Please send a quote and update our subscription.",grace.kim@globex.com,2,2,Question,"licensing,subscription,seats"

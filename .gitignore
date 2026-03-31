@@ -1,0 +1,23 @@
+# Live config — contains no secrets but is machine-specific
+config/config.local.yaml
+
+# MCP server credentials — never commit
+mcp_servers/**/.env
+
+# External API keys — never commit
+config/external_apis.yaml
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+.venv/
+# dist/ is intentionally NOT excluded here — it contains the UI release snapshot
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+logs/
