@@ -26,7 +26,7 @@ The agent automatically picks the right tool, calls it, and streams the answer b
 - **Freshdesk** — tickets, contacts, accounts, groups, ticket fields, knowledge base (24 tools)
 - **Freshservice** — tickets, changes, problems, assets, service catalog, journeys, knowledge base (47 tools)
 - **RAG** — local document knowledge base (ChromaDB + Ollama embeddings, 6 tools)
-- **Web Search** — DuckDuckGo search via the `websearch` MCP server (no API key required)
+- **Web Search** — Perplexity Sonar API via the `websearch` MCP server (requires a Perplexity API key)
 
 **UI features**
 - Chat panel with real-time streaming and inline tool-call indicators
@@ -66,17 +66,43 @@ The pipeline runs three workers in sequence:
 
 | Worker | Tools | Purpose |
 |---|---|---|
-| 1 — Web Research | `websearch_search` | Gathers context on the subject: industry, size, relevant facts, signals |
+| 1 — Web Research | `websearch_search` | Researches the subject: company profile, recent org changes, investor relations news |
 | 2 — Knowledge Retrieval | `rag_list_collections`, `rag_query` | Discovers available collections, picks the best match, extracts relevant content |
-| 3 — Synthesis | none (reasoning only) | Combines both into a structured output grounded in the retrieved context |
+| 3 — Synthesis | none (reasoning only) | Produces output matching exactly what the user asked for, grounded in the research |
 
-Progress indicators are shown inline as each worker runs. If the web search server is disabled, Worker 1 is skipped and the user's message is used as context. If the knowledge base returns no content, Worker 3 notes the gap rather than hallucinating.
+The pipeline is instruction-aware:
+- **Skip RAG** — say "do not retrieve from the knowledge base" or "just web research" and Worker 2 is skipped
+- **Follow-up messages** — if you continue a conversation without naming a new company, Worker 1 is skipped and prior context is carried through automatically
+- **Adaptive output** — Worker 3 reads your request and produces the format you asked for, not a fixed template
+
+Progress indicators are shown inline as each worker runs. If the web search server is not configured, Worker 1 falls back to the user's message. If the knowledge base returns no content, Worker 3 notes the gap rather than hallucinating.
 
 > **Knowledge base collections:** Worker 2 calls `rag_list_collections` first and selects collections by their actual names — it does not assume fixed names. Collections uploaded via the RAG panel are discovered automatically.
 
-### Enabling web search
+### Setting up web search (Perplexity)
 
-Add to `config.local.yaml` under `mcp_servers`:
+The web search step uses the [Perplexity Sonar API](https://www.perplexity.ai/). You need a Perplexity API key.
+
+**Option 1 — via the UI (recommended)**
+
+1. Start Desman and open **Settings → External APIs**
+2. Find the **Perplexity** card, paste your key, and toggle it on
+3. Click **Save & Apply**
+
+The key is written automatically to `mcp_servers/websearch/.env`. Restart Desman for the websearch server to pick it up.
+
+**Option 2 — manually**
+
+```bash
+cp mcp_servers/websearch/.env.example mcp_servers/websearch/.env
+```
+
+Open `mcp_servers/websearch/.env` and set:
+```
+PERPLEXITY_API_KEY=your_key_here
+```
+
+Then enable the server in `config.local.yaml`:
 
 ```yaml
 - name: websearch
@@ -112,6 +138,9 @@ Configured in the UI under **Settings → External APIs**. Just paste your API k
 | HuggingFace | Llama 3.3 70B, Qwen 2.5 72B, Gemma 27B, Mistral, Mixtral and more | Free tier available at [huggingface.co](https://huggingface.co) |
 | Anthropic | Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.6 | Paid API |
 | OpenAI | GPT-4o, GPT-4o Mini, GPT-4 Turbo | Paid API |
+
+### Web search (Perplexity)
+The research workflow uses Perplexity Sonar for web search. This is configured separately in **Settings → External APIs** under the Perplexity card — it does not add models to the model selector, it powers the websearch MCP server.
 
 ---
 
@@ -346,8 +375,11 @@ desman/
 - Freshdesk (24 tools) + Freshservice (47 tools) + local RAG knowledge base (6 tools)
 
 **Recent additions (v0.1.x)**
-- **Research and synthesis workflow** — three-worker pipeline: web research (DuckDuckGo, no API key) → knowledge base retrieval → synthesis. Produces a structured briefing grounded in both live web context and your uploaded documents. Triggered automatically by natural-language intent detection; does not affect normal agent queries.
-- **Web Search MCP server** (`mcp_servers/websearch/`) — DuckDuckGo search via the `ddgs` package, no credentials required. Enable with `enabled: true` in `config.local.yaml`.
+- **Research and synthesis workflow** — three-worker pipeline: web research (Perplexity Sonar) → knowledge base retrieval → synthesis. Produces output matching exactly what the user asked for, grounded in live web research and uploaded documents. Triggered automatically by natural-language intent detection; does not affect normal agent queries.
+- **Perplexity Sonar web search** — replaces DuckDuckGo. Configurable via Settings → External APIs; key is written automatically to the websearch server. Worker 1 now explicitly searches for recent org changes (leadership, M&A, restructuring) and investor relations news (earnings, press releases) in addition to the core company profile.
+- **Instruction-aware pipeline** — say "skip the knowledge base" to bypass RAG retrieval; follow-up messages in a conversation automatically carry prior research context without re-running web search.
+- **Adaptive synthesis** — Worker 3 produces the format the user asked for rather than a fixed template. A company overview request returns an overview; a discovery briefing request returns discovery questions.
+- **Web Search MCP server** (`mcp_servers/websearch/`) — now uses Perplexity Sonar (`sonar` model, `return_citations: true`). Requires a Perplexity API key set via the UI or `.env`.
 - **RAG knowledge base** — upload PDF, DOCX, TXT, or MD files via the UI; query with semantic search backed by ChromaDB and Ollama embeddings (`nomic-embed-text`); fully local, no cloud dependency
 - **Freshservice service catalog** — create and update service catalog items (fixed: correct hyphenated API endpoint `service-catalog/items`; `visibility` parameter controls draft vs published)
 - **Freshservice journeys** — create onboarding/offboarding requests, list active journeys, get journey activities, cancel requests
