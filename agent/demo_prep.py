@@ -67,10 +67,28 @@ _TRIGGERS = (
     "research",
     "who is",
     "tell me about",
+    "tell me more about",
     "brief on",
     "briefing",
     "brief me",
     "prep for",
+    "detailed look",
+    "detailed summary",
+    "detailed overview",
+    "look into",
+    "dig into",
+    "summary of",
+    "overview of",
+    "find out about",
+    "find information",
+    "find out",
+    "what do you know",
+    "give me a summary",
+    "give me an overview",
+    "give me details",
+    "give me information",
+    "can you find",
+    "what can you find",
 )
 
 # Context words that indicate a company / industry target is present
@@ -80,10 +98,17 @@ _CONTEXT_WORDS = (
     " inc",
     " ltd",
     " corp",
+    " bv",
+    " nv",
+    " plc",
+    " se",
     "company",
     "manufacturer",
     "bank",
     "retailer",
+    "reseller",
+    "distributor",
+    "supplier",
     "hospital",
     "university",
     "startup",
@@ -92,13 +117,18 @@ _CONTEXT_WORDS = (
     "telecom",
     "pharma",
     "chemical",
-    "retailer",
     "industry",
+    "industrial",
     "customer",
     "prospect",
     "account",
-    "group",          # e.g. "Siemens Group"
+    "group",
     "holding",
+    "operations",
+    "division",
+    "subsidiary",
+    "section",
+    "international",
 )
 
 
@@ -349,6 +379,27 @@ Do not invent questions. If the knowledge base was sparse, say which areas are n
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+def _has_company_context(message: str) -> bool:
+    """Return True if the message names a company or clearly describes a new research target."""
+    msg = message.lower()
+    return any(c in msg for c in _CONTEXT_WORDS)
+
+
+def _extract_history_context(history: list[dict], max_chars: int = 3000) -> str:
+    """Return a condensed view of the recent conversation for use as company context."""
+    if not history:
+        return ""
+    recent = history[-6:]  # last 3 exchanges
+    parts = []
+    for msg in recent:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if isinstance(content, str) and content.strip():
+            content = content[:1000] + ("..." if len(content) > 1000 else "")
+            parts.append(f"{role.upper()}: {content}")
+    return "\n\n".join(parts)[:max_chars]
+
+
 def _agent_loop_run(*args, **kwargs):
     """Lazy wrapper around agent.loop.run to avoid circular import at module level."""
     from .loop import run  # noqa: PLC0415
@@ -413,13 +464,21 @@ def _w2_task(user_message: str, company_context: str) -> str:
     )
 
 
-def _w3_task(user_message: str, company_context: str, rag_context: str) -> str:
+def _w3_task(
+    user_message: str,
+    company_context: str,
+    rag_context: str,
+    history_context: str = "",
+) -> str:
     parts = [f"User request:\n{user_message}"]
+
+    if history_context:
+        parts.append(f"Prior conversation context:\n{history_context}")
 
     if company_context:
         parts.append(f"Company research (from web):\n{company_context}")
     else:
-        parts.append("Company research: not available — use the user's message as context only.")
+        parts.append("Company research: not available — use the conversation context and user message only.")
 
     if rag_context:
         parts.append(f"Knowledge base content:\n{rag_context}")
@@ -471,9 +530,23 @@ def run_demo_prep(
 
     company_context = ""
     rag_context = ""
+    history_context = _extract_history_context(history)
 
     # ── Worker 1: Company Research ────────────────────────────────────────────
-    if websearch_tools:
+    # Skip if: user said "skip web", no web tools available, or this is a follow-up
+    # message with no new company named (use history as company context instead).
+    is_followup = not _has_company_context(user_message)
+    skip_web = _should_skip_rag(user_message)  # "do not retrieve", "just research", etc.
+
+    if skip_web and is_followup:
+        # "do not retrieve from rag" + no company named → pure follow-up, history only
+        yield "*[Using prior conversation context — no new research requested.]*\n"
+        company_context = history_context
+    elif is_followup and history:
+        # Follow-up message — continue from prior research, skip web search
+        yield "*[Continuing from prior conversation — no new web research needed.]*\n"
+        company_context = history_context
+    elif websearch_tools and not skip_web:
         yield "*[Researching company...]*\n"
         company_context = _collect_text(
             _agent_loop_run(
@@ -489,16 +562,14 @@ def run_demo_prep(
             )
         )
         if not company_context:
-            # Model produced nothing useful — fall back to user's original message
-            company_context = user_message
+            company_context = history_context or user_message
     else:
-        yield "*[Web search server is not enabled — using the context you provided.]*\n"
-        company_context = user_message
+        yield "*[Web search not available — using the context you provided.]*\n"
+        company_context = history_context or user_message
 
     # ── Worker 2: RAG Retrieval ───────────────────────────────────────────────
-    skip_rag = _should_skip_rag(user_message)
-    if skip_rag:
-        yield "*[Skipping knowledge base — web research only as requested.]*\n"
+    if _should_skip_rag(user_message):
+        yield "*[Skipping knowledge base — as requested.]*\n"
     elif rag_tools:
         yield "*[Retrieving relevant knowledge base content...]*\n"
         rag_context = _collect_text(
@@ -517,16 +588,15 @@ def run_demo_prep(
 
     # ── Worker 3: Synthesis ───────────────────────────────────────────────────
     yield "*[Synthesising...]*\n"
-    synthesis_prompt = _W3_SYSTEM
 
     yield from _agent_loop_run(
-        user_message=_w3_task(user_message, company_context, rag_context),
+        user_message=_w3_task(user_message, company_context, rag_context, history_context),
         history=[],
         model=model,
         cfg=cfg,
         session_manager=session_manager,
         disabled_servers=None,
         external_apis=external_apis,
-        system_prompt=synthesis_prompt,
+        system_prompt=_W3_SYSTEM,
         tools_override=[],   # reasoning-only — no tool access
     )
