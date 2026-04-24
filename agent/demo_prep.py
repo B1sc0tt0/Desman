@@ -68,6 +68,8 @@ _TRIGGERS = (
     "who is",
     "tell me about",
     "brief on",
+    "briefing",
+    "brief me",
     "prep for",
 )
 
@@ -133,6 +135,8 @@ _DISCOVERY_SIGNALS = (
     "discovery question",
     "discovery meeting",
     "discovery session",
+    "discovery briefing",
+    "discovery brief",
     "prepare for discovery",
     "prep for discovery",
     "questions for",
