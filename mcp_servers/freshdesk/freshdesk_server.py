@@ -12,11 +12,15 @@ API_KEY  = os.getenv('FRESHDESK_API_KEY')
 DOMAIN   = os.getenv('FRESHDESK_DOMAIN')
 BASE_URL = f'https://{DOMAIN}/api/v2'
 
+_SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').strip().lower() != 'false'
+
+
 def get_client() -> httpx.Client:
     return httpx.Client(
         auth=(API_KEY, 'X'),
         headers={'Content-Type': 'application/json'},
-        timeout=30.0
+        timeout=30.0,
+        verify=_SSL_VERIFY,
     )
 
 

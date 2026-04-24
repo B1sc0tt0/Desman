@@ -19,39 +19,72 @@ import re
 from typing import Generator
 
 from .config import get_system_prompt
+from .demo_prep import is_demo_prep_intent, run_demo_prep
 from .mcp_client import SessionManager
 from .providers import chat as provider_chat
 
 
 def run(
-    user_message: str,
+    user_message: str | list,
     history: list[dict],
     model: str,
     cfg: dict,
     session_manager: SessionManager,
     disabled_servers: list[str] | None = None,
     external_apis: dict | None = None,
+    system_prompt: str | None = None,
+    tools_override: list[dict] | None = None,
 ) -> Generator[str, None, None]:
     """
     Yields response tokens (strings).
 
-    model:         model_string including provider prefix for external models.
-    history:       list of {"role": ..., "content": ...} — excludes current message.
-    external_apis: loaded external_apis.yaml dict, or empty dict for Ollama-only.
+    model:          model_string including provider prefix for external models.
+    history:        list of {"role": ..., "content": ...} — excludes current message.
+    external_apis:  loaded external_apis.yaml dict, or empty dict for Ollama-only.
+    system_prompt:  optional override for the system prompt; used by WorkerAgent
+                    to inject role-specific instructions. When None, falls back to
+                    the admin system prompt defined in config.
+    tools_override: optional pre-filtered tool list; used by WorkerAgent to restrict
+                    the agent to its domain-scoped tools. When None, the full tool
+                    list is used (after applying disabled_servers filtering).
     """
-    system_prompt = get_system_prompt(cfg)
+    # ── Demo prep intent detection ────────────────────────────────────────────
+    # Only intercept top-level calls (system_prompt is None, tools_override is None).
+    # Worker calls always pass one or both — this guard ensures the orchestrator
+    # never recursively intercepts its own worker calls.
+    if (
+        isinstance(user_message, str)
+        and system_prompt is None
+        and tools_override is None
+        and is_demo_prep_intent(user_message)
+    ):
+        yield from run_demo_prep(
+            user_message=user_message,
+            history=history,
+            model=model,
+            cfg=cfg,
+            session_manager=session_manager,
+            external_apis=external_apis or {},
+        )
+        return
+
+    active_system_prompt = system_prompt if system_prompt is not None else get_system_prompt(cfg)
     max_iterations = cfg["agent"].get("max_iterations", 10)
     temperature = cfg["agent"].get("temperature", 0.3)
     ext = external_apis or {}
 
-    tools = session_manager.all_tools()
-    if disabled_servers:
-        tools = [
-            t for t in tools
-            if not any(t["function"]["name"].startswith(f"{s}_") for s in disabled_servers)
-        ]
+    if tools_override is not None:
+        # WorkerAgent pre-filters tools — use as-is, skip disabled_servers logic
+        tools = tools_override
+    else:
+        tools = session_manager.all_tools()
+        if disabled_servers:
+            tools = [
+                t for t in tools
+                if not any(t["function"]["name"].startswith(f"{s}_") for s in disabled_servers)
+            ]
 
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = [{"role": "system", "content": active_system_prompt}]
     messages += history
     messages.append({"role": "user", "content": user_message})
 

@@ -32,7 +32,6 @@ _DEFAULT_OPENAI_MODELS = [
 ]
 
 _DEFAULT_HF_IMAGE_MODELS = [
-    {"display_name": "Image — FLUX.1 Dev",     "hf_model": "black-forest-labs/FLUX.1-dev",     "type": "image"},
     {"display_name": "Image — FLUX.1 Schnell", "hf_model": "black-forest-labs/FLUX.1-schnell", "type": "image"},
 ]
 
@@ -46,6 +45,12 @@ _DEFAULT_HF_MODELS = [
     {"display_name": "Mixtral 8x7B (HF)",    "model_id": "mistralai/Mixtral-8x7B-Instruct-v0.1"},
     {"display_name": "Gemma 3 27B (HF)",     "model_id": "google/gemma-3-27b-it"},
     {"display_name": "MiniMax M2.5 (HF)",    "model_id": "MiniMaxAI/MiniMax-M2.5"},
+    {"display_name": "Trinity Large Thinking (HF)", "model_id": "arcee-ai/Trinity-Large-Thinking"},
+    {"display_name": "Llama 4 Scout (HF)",          "model_id": "meta-llama/Llama-4-Scout-17B-16E-Instruct"},
+    {"display_name": "Qwen3 32B (HF)",              "model_id": "Qwen/Qwen3-32B"},
+    {"display_name": "Kimi K2 (HF)",                "model_id": "moonshotai/Kimi-K2-Instruct"},
+    {"display_name": "Gemma 4 26B MoE (HF)",        "model_id": "google/gemma-4-26B-A4B-it"},
+    {"display_name": "Gemma 4 31B (HF)",             "model_id": "google/gemma-4-31B-it"},
 ]
 
 

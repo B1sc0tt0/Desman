@@ -56,13 +56,19 @@ def _get_chroma() -> chromadb.PersistentClient:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _embed(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings for a list of texts via Ollama."""
+    """Generate embeddings for a list of texts via Ollama (batched)."""
     client = _ollama.Client(host=OLLAMA_HOST)
-    embeddings = []
-    for text in texts:
-        resp = client.embeddings(model=EMBED_MODEL, prompt=text)
-        embeddings.append(resp["embedding"])
-    return embeddings
+    try:
+        # Batch API: single model load, one round-trip for all chunks
+        resp = client.embed(model=EMBED_MODEL, input=texts)
+        return resp["embeddings"]
+    except AttributeError:
+        # Fallback for older ollama SDK versions
+        embeddings = []
+        for text in texts:
+            resp = client.embeddings(model=EMBED_MODEL, prompt=text)
+            embeddings.append(resp["embedding"])
+        return embeddings
 
 
 def _chunk_text(text: str) -> list[str]:
@@ -133,6 +139,20 @@ def _read_file(file_path: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _sanitize_collection_name(name: str) -> str:
+    """Map any user-supplied collection name to a ChromaDB-safe identifier.
+
+    ChromaDB requires: 3-512 chars, [a-zA-Z0-9._-], starting and ending
+    with [a-zA-Z0-9].  Spaces and other disallowed chars become underscores.
+    """
+    import re
+    safe = re.sub(r"[^a-zA-Z0-9._-]", "_", name)
+    safe = safe.strip("_.-")
+    if len(safe) < 3:
+        safe = (safe + "___")[:3]
+    return safe[:512]
+
+
 def _delete_doc_chunks(col: chromadb.Collection, doc_id: str) -> int:
     """Remove all existing chunks for doc_id from the collection. Returns count removed."""
     existing = col.get(where={"doc_id": {"$eq": doc_id}}, include=["metadatas"])
@@ -189,7 +209,7 @@ def ingest_document(
         }
 
     db = _get_chroma()
-    col = db.get_or_create_collection(collection)
+    col = db.get_or_create_collection(_sanitize_collection_name(collection))
 
     # Replace existing chunks for this doc_id
     removed = _delete_doc_chunks(col, doc_id)
@@ -205,38 +225,31 @@ def ingest_document(
         "collection": collection,
         "chunks_stored": len(chunks),
         "chunks_replaced": removed,
+        "collection_id": _sanitize_collection_name(collection),
     }
 
 
 @mcp.tool()
 def query(
     query: str,
-    collection: str,
-    top_k: int = 3,
+    collection: str = "documents",
 ) -> dict:
-    """Semantic search over a RAG collection.
+    """Semantic search over the RAG knowledge base.
 
-    IMPORTANT: Call list_collections() first to confirm the collection name
-    before calling this tool. Never guess a collection name.
-
-    Embeds the query via Ollama and returns the most relevant document chunks.
-    Use the returned text as context before calling action tools.
+    Call this directly to answer questions from uploaded documents.
+    The default collection is "documents". Only call list_collections() if
+    this returns a "collection not found" error.
 
     Args:
         query: Natural-language question or keyword phrase.
-        collection: Collection to search — must be an exact name from list_collections().
-        top_k: Number of chunks to return (default 3; use 1 for short profiles).
+        collection: Collection to search (default: "documents").
     """
     query_text = query
-    # Coerce top_k in case the model passes it as a string
-    try:
-        top_k = int(top_k)
-    except (TypeError, ValueError):
-        top_k = 3
+    top_k = 3
 
     db = _get_chroma()
     try:
-        col = db.get_collection(collection)
+        col = db.get_collection(_sanitize_collection_name(collection))
     except Exception:
         # Surface available collections so the model can self-correct
         try:
@@ -309,7 +322,7 @@ def list_documents(collection: str) -> dict:
     """
     db = _get_chroma()
     try:
-        col = db.get_collection(collection)
+        col = db.get_collection(_sanitize_collection_name(collection))
     except Exception:
         return {"success": False, "error": f"Collection '{collection}' not found."}
 
@@ -339,7 +352,7 @@ def delete_document(collection: str, doc_id: str) -> dict:
     """
     db = _get_chroma()
     try:
-        col = db.get_collection(collection)
+        col = db.get_collection(_sanitize_collection_name(collection))
     except Exception:
         return {"success": False, "error": f"Collection '{collection}' not found."}
 
@@ -361,7 +374,7 @@ def delete_collection(collection: str) -> dict:
     """
     db = _get_chroma()
     try:
-        db.delete_collection(collection)
+        db.delete_collection(_sanitize_collection_name(collection))
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 

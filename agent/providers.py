@@ -114,6 +114,17 @@ def _try_parse_text_tool_call(text: str, tools: list) -> ToolCall | None:
                 args = {}
             return ToolCall(name=name, arguments=args if isinstance(args, dict) else {}, id="text-fallback")
 
+    # ── Llama 4 Scout variant: <function=name {"key": val} (no parens) ────────
+    fn_match2 = re.search(r"<function=(\w+)\s*(\{.*?\})", text, re.DOTALL)
+    if fn_match2:
+        name, raw_args = fn_match2.group(1), fn_match2.group(2)
+        if not known or name in known:
+            try:
+                args = json.loads(raw_args)
+                return ToolCall(name=name, arguments=args if isinstance(args, dict) else {}, id="text-fallback")
+            except (json.JSONDecodeError, ValueError):
+                pass
+
     # ── Python-call style: name({"arg": val}) — seen in Qwen prose output ─────
     py_match = re.match(r"^(\w+)\s*\((\{.*\})\)\s*$", text, re.DOTALL)
     if py_match:
@@ -354,6 +365,9 @@ def _chat_openai(model_id, messages, tools, temperature, api_key) -> ChatResult:
 
 _HF_BASE_URL = "https://router.huggingface.co/v1"
 
+import os as _os
+_SSL_VERIFY = _os.getenv("SSL_VERIFY", "true").strip().lower() != "false"
+
 
 def _chat_huggingface(model_id, messages, tools, temperature, api_key) -> ChatResult:
     """
@@ -422,7 +436,7 @@ def _chat_huggingface(model_id, messages, tools, temperature, api_key) -> ChatRe
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    with httpx.Client(timeout=60.0) as client:
+    with httpx.Client(timeout=240.0, verify=_SSL_VERIFY, trust_env=False) as client:
         r = client.post(
             f"{_HF_BASE_URL}/chat/completions",
             headers={
@@ -444,8 +458,52 @@ def _chat_huggingface(model_id, messages, tools, temperature, api_key) -> ChatRe
                     tc = _try_parse_text_tool_call(failed_gen, tools)
                     if tc:
                         return ChatResult(text="", tool_calls=[tc])
+                # Gemma 4 and some other HF models send the tool schema as arguments
+                # instead of actual values, triggering a validation error with no
+                # failed_generation field.  Retry without tools so the model can at
+                # least produce a plain-text answer.
+                err_msg = err.get("message", "")
+                if not failed_gen and (
+                    "tool call validation failed" in err_msg
+                    or "parameters for tool" in err_msg
+                ):
+                    retry_payload = {k: v for k, v in payload.items() if k not in ("tools", "tool_choice")}
+                    with httpx.Client(timeout=60.0, verify=_SSL_VERIFY, trust_env=False) as retry_client:
+                        r_retry = retry_client.post(
+                            f"{_HF_BASE_URL}/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json",
+                            },
+                            json=retry_payload,
+                        )
+                    if r_retry.status_code == 200:
+                        return ChatResult(
+                            text=r_retry.json()["choices"][0]["message"].get("content") or ""
+                        )
             except Exception:
                 pass
+        try:
+            err_body = r.json()
+            msg = err_body.get("message") or err_body.get("error", {}).get("message", "")
+            if "vision not support" in msg.lower() or "vision" in msg.lower():
+                raise RuntimeError(
+                    "This model does not support image inputs via the HuggingFace API. "
+                    "Try a vision-capable model or remove the attached image."
+                )
+        except (ValueError, AttributeError):
+            pass
+        # Detect corporate proxy login-page interception (503 or 200 returning HTML)
+        if r.status_code == 503 or (
+            r.status_code == 200 and r.text.lstrip().startswith("<!DOCTYPE")
+        ):
+            if "login" in r.text.lower() or "authenticate" in r.text.lower() or "<html" in r.text.lower():
+                raise RuntimeError(
+                    "Your network proxy intercepted the HuggingFace request and returned a login page. "
+                    "Set HTTPS_PROXY=http://user:pass@proxy:port before starting Desman, "
+                    "or set NO_PROXY=router.huggingface.co to bypass the proxy for this host. "
+                    "Alternatively, use Anthropic or OpenAI in Settings → External APIs."
+                )
         raise RuntimeError(f"HuggingFace API error {r.status_code}: {r.text[:300]}")
 
     data = r.json()

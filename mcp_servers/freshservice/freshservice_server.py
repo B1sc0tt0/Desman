@@ -18,11 +18,15 @@ BASE_URL = f'https://{DOMAIN}/api/v2'
 DEFAULT_REQUESTER_EMAIL = os.getenv('REQUESTER_EMAIL', '')
 
 
+_SSL_VERIFY = os.getenv('SSL_VERIFY', 'true').strip().lower() != 'false'
+
+
 def get_client() -> httpx.Client:
     return httpx.Client(
         auth=(API_KEY, 'X'),
         headers={'Content-Type': 'application/json'},
-        timeout=30.0
+        timeout=30.0,
+        verify=_SSL_VERIFY,
     )
 
 

@@ -72,8 +72,8 @@ body {
   overflow: hidden;
   /* Graph-paper grid — reinforces "precision instrument" aesthetic */
   background-image:
-    linear-gradient(oklch(78% 0.020 75 / 0.65) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(78% 0.020 75 / 0.65) 1px, transparent 1px);
+    linear-gradient(oklch(72% 0.030 75 / 0.90) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(72% 0.030 75 / 0.90) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -93,7 +93,7 @@ body {
   height: 64px;
   /* Always dark — hardware panel aesthetic, independent of page theme */
   background: oklch(13% 0.015 260);
-  border-bottom: 2px solid var(--red);
+  border-bottom: 3px solid var(--red);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
@@ -275,6 +275,7 @@ body {
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 #model-select:focus-visible { border-color: var(--blue); outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--blue) 20%, transparent); }
+#model-select:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* Messages */
 #chat-messages {
@@ -289,7 +290,7 @@ body {
 
 .msg { display: flex; flex-direction: column; gap: var(--sp-1); animation: msg-in 320ms cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes msg-in {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -347,6 +348,7 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--ink);
+  background: linear-gradient(90deg, color-mix(in oklch, var(--blue) 7%, transparent) 0%, transparent 55%);
 }
 
 /* Tool call row */
@@ -451,6 +453,27 @@ body {
 #send-btn:active:not(:disabled) { background: oklch(42% 0.24 22); transform: translateY(0); box-shadow: 0 1px 4px oklch(54% 0.24 22 / 0.30); }
 #send-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
 
+#img-btn {
+  height: 42px; width: 42px; padding: 0;
+  background: var(--cream); color: var(--subtle);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; flex-shrink: 0; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+#img-btn:hover { color: var(--blue); border-color: var(--blue); }
+#img-btn.has-image { color: var(--blue); border-color: var(--blue); background: color-mix(in oklch, var(--blue) 10%, var(--cream)); }
+#img-preview-wrap {
+  display: none; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--paper); border-top: 1px solid var(--border);
+}
+#img-preview-wrap.visible { display: flex; }
+#img-preview { height: 52px; width: 52px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); }
+#img-clear { background: none; border: none; color: var(--subtle); cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
+#img-clear:hover { color: var(--red); }
+.user-image { max-width: 220px; max-height: 160px; border-radius: 6px; display: block; margin-bottom: 4px; }
+
 /* ── Sidebar ──────────────────────────────────────────────────── */
 #sidebar {
   display: flex;
@@ -472,7 +495,7 @@ body {
   text-transform: uppercase;
   color: var(--ink);
   border-bottom: 2px solid var(--border-dim);
-  border-left: 3px solid var(--red);
+  border-left: 4px solid var(--red);
   padding-left: var(--sp-3);
 }
 
@@ -793,6 +816,19 @@ body {
   background-image: inherit;
   padding: var(--sp-6) var(--sp-5);
   gap: var(--sp-4);
+}
+.rag-vs-ctx {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--subtle);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  cursor: help;
+  text-transform: uppercase;
 }
 .rag-heading {
   font-family: var(--font-pixel);
@@ -1378,17 +1414,19 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
   .s-dot.connecting,
   .mcp-row .dot.connecting,
   .sidebar-fab-dot.connecting { animation: none; }
+  .agent-phase-dot { animation: none; }
+  .agent-phase, .rag-context-badge, .orch-trace { animation: none; }
 }
 
 /* ── Chat welcome state ───────────────────────────────────────── */
 #chat-welcome {
   display: flex;
   gap: var(--sp-5);
-  padding: var(--sp-8) var(--sp-5) var(--sp-4);
+  padding: var(--sp-10) var(--sp-5) var(--sp-6);
   animation: msg-in var(--dur-mid) var(--ease-out);
 }
 .welcome-rule {
-  width: 5px;
+  width: 7px;
   min-height: 80px;
   border-radius: 2px;
   background: var(--red);
@@ -1398,20 +1436,23 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
 .welcome-body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-5);
   max-width: 52ch;
 }
 .welcome-title {
   font-family: var(--font-pixel);
-  font-size: 22px;  /* Press Start 2P at 22px is visually ~40-48px regular */
+  font-size: 28px;  /* Press Start 2P at 28px is visually ~56px regular */
   font-weight: 400;
   color: var(--ink);
   letter-spacing: 0.04em;
   line-height: 1.4;
   image-rendering: pixelated;
 }
+@media (max-width: 480px) {
+  .welcome-title { font-size: 16px; }
+}
 .welcome-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.7;
   max-width: 48ch;
@@ -1632,6 +1673,293 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
   display: inline-block;
 }
 .gen-image-dl:hover { color: var(--ink); }
+
+/* ── Orchestration config panel ───────────────────────────────── */
+.orch-cfg-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.orch-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.orch-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--cream-dim);
+  border-bottom: 1px solid var(--border);
+}
+.orch-card-title { font-size: 12px; font-weight: 700; color: var(--ink); flex: 1; }
+.orch-card-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.orch-card-body {
+  padding: var(--sp-4);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  background: var(--paper);
+}
+.orch-field-group { display: flex; flex-direction: column; gap: var(--sp-1); }
+.orch-field-group.span2 { grid-column: 1 / -1; }
+.orch-field-group label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.orch-field-group select,
+.orch-field-group input[type="text"],
+.orch-field-group input[type="number"] {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.orch-field-group input[type="number"] { max-width: 100px; }
+.orch-field-group select:focus-visible,
+.orch-field-group input:focus-visible {
+  border-color: var(--blue);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--blue) 18%, transparent);
+}
+.orch-field-group textarea {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.orch-field-group textarea:focus-visible {
+  border-color: var(--blue);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--blue) 18%, transparent);
+}
+.orch-worker-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--sp-4);
+  background: var(--cream-dim);
+}
+.orch-worker-tab {
+  padding: var(--sp-2) var(--sp-3);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.orch-worker-tab:hover { color: var(--ink); }
+.orch-worker-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.orch-worker-pane { display: none; }
+.orch-worker-pane.active { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); padding: var(--sp-4); background: var(--paper); }
+#orch-save-status { font-size: 12px; color: var(--subtle); }
+#orch-save-status.ok    { color: var(--green-connected); animation: status-pop 280ms cubic-bezier(0.16, 1, 0.3, 1); }
+#orch-save-status.error { color: var(--red); }
+
+/* ── Mode toggle ──────────────────────────────────────────────── */
+#mode-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--cream-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-left: var(--sp-2);
+}
+.mode-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.mode-btn:hover { color: var(--ink); }
+.mode-btn.active {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.mode-btn[data-mode="orchestrated"].active {
+  background: var(--blue);
+  color: oklch(97% 0.005 75);
+  box-shadow: 0 2px 8px color-mix(in oklch, var(--blue) 45%, transparent);
+}
+
+/* Model bar: subtle blue tint when in orchestrated mode */
+#model-bar.orch-active {
+  background: color-mix(in oklch, var(--blue) 5%, var(--paper));
+  border-bottom-color: color-mix(in oklch, var(--blue) 28%, var(--border));
+}
+#model-bar.orch-active label {
+  color: var(--blue);
+}
+/* In orchestrated mode the picker is read-only context — override disabled opacity */
+#model-bar.orch-active #model-select {
+  opacity: 1;
+  cursor: default;
+  pointer-events: none;
+  color: var(--blue);
+  border-color: color-mix(in oklch, var(--blue) 25%, var(--border));
+  background: color-mix(in oklch, var(--blue) 6%, var(--cream));
+}
+
+/* ── Agent phase chip (in-flight status) ─────────────────────── */
+.agent-phase {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  animation: tool-scan 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.agent-phase-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+  animation: blink-dot 1.2s ease-in-out infinite;
+}
+.agent-phase-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+}
+
+/* ── RAG context badge (persistent grounding indicator) ───────── */
+.rag-context-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  animation: msg-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rag-context-bar {
+  width: 4px;
+  align-self: stretch;
+  min-height: 12px;
+  background: var(--blue-dim);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.rag-context-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ── Orchestration trace panel ────────────────────────────────── */
+.orch-trace {
+  margin-top: var(--sp-2);
+  border: 1px solid var(--blue-dim);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: msg-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.orch-trace-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: color-mix(in oklch, var(--blue) 7%, var(--cream-dim));
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.orch-trace-label {
+  font-family: var(--font-pixel);
+  font-size: 6px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--blue);
+  flex: 1;
+}
+.orch-trace-label.fallback { color: var(--amber); }
+.orch-trace-chevron {
+  font-size: 9px;
+  color: var(--blue);
+  transition: transform var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.orch-trace-chevron.open { transform: rotate(90deg); }
+.orch-trace-body {
+  display: none;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--cream-dim);
+  border-top: 1px solid var(--blue-dim);
+}
+.orch-trace-body.open { display: flex; }
+.orch-field { display: flex; gap: var(--sp-2); align-items: baseline; }
+.orch-field-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--subtle);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+.orch-field-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.orch-field-value.fallback { color: var(--amber); font-size: 10px; }
+.orch-delegate-badge {
+  background: var(--blue-dim);
+  color: var(--blue);
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.orch-bool-yes { color: var(--green-connected); font-weight: 700; }
+.orch-bool-no  { color: var(--subtle); }
 </style>
 </head>
 <body>
@@ -1671,6 +1999,10 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
     <div id="model-bar">
       <label for="model-select">Model</label>
       <select id="model-select" aria-label="Select model"></select>
+      <div id="mode-toggle" role="group" aria-label="Agent mode">
+        <button class="mode-btn active" data-mode="direct" aria-pressed="true">Direct</button>
+        <button class="mode-btn" data-mode="orchestrated" aria-pressed="false">Multi-agent</button>
+      </div>
     </div>
     <div id="chat-messages" aria-live="polite" aria-label="Conversation">
       <div id="chat-welcome">
@@ -1687,7 +2019,14 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
         </div>
       </div>
     </div>
+    <div id="img-preview-wrap">
+      <img id="img-preview" alt="Attached image">
+      <span style="font-size:12px;color:var(--subtle)">Image attached</span>
+      <button id="img-clear" title="Remove image" aria-label="Remove image">×</button>
+    </div>
     <div id="input-bar">
+      <input type="file" id="img-file-input" accept="image/*" style="display:none" aria-hidden="true">
+      <button id="img-btn" title="Attach image" aria-label="Attach image">📎</button>
       <textarea id="chat-input"
         placeholder="Ask anything… Enter to send, Shift+Enter for newline"
         rows="1"
@@ -1740,9 +2079,9 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
 
   <!-- RAG -->
   <div id="panel-rag" class="panel" role="tabpanel">
-    <div class="rag-heading">RAG</div>
-    <p class="panel-sub">Upload documents to the local knowledge base. The agent retrieves relevant context from them before acting — useful for customer profiles, policies, SOPs, or any reference material.</p>
-    <p class="panel-sub" style="margin-top:var(--sp-1);">Documents persist across restarts — upload once, use always.</p>
+    <div class="rag-heading">RAG <span class="rag-vs-ctx" title="RAG retrieves only the most relevant chunks from an arbitrarily large document store — it scales beyond any context window. A large context window loads everything at once: simpler, but capped in size and expensive per query. Desman uses RAG so documents stay local, update without retraining, and scale independently of the model.">vs. context window ⓘ</span></div>
+    <p class="panel-sub">Upload documents to the local knowledge base. The agent retrieves relevant context before acting — useful for policies, SLAs, SOPs, customer profiles, or any reference material.</p>
+    <p class="panel-sub" style="margin-top:var(--sp-1);">Documents persist across restarts — upload once, use always. Disable the RAG server in <code>config.local.yaml</code> if running on constrained hardware.</p>
 
     <div class="rag-controls">
       <div class="rag-field">
@@ -1779,6 +2118,7 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
 
     <div class="cfg-tabs" role="tablist">
       <button class="cfg-tab-btn active" data-cfg-tab="external" role="tab" aria-selected="true">External APIs</button>
+      <button class="cfg-tab-btn" data-cfg-tab="orchestration" role="tab" aria-selected="false">Orchestration</button>
       <button class="cfg-tab-btn" data-cfg-tab="mcp" role="tab" aria-selected="false">MCP Details</button>
       <button class="cfg-tab-btn" data-cfg-tab="advanced" role="tab" aria-selected="false">Config File</button>
       <button class="cfg-tab-btn" data-cfg-tab="models" role="tab" aria-selected="false">Local Models</button>
@@ -1809,6 +2149,112 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
       <div id="ext-api-actions">
         <button class="btn btn-primary" id="ext-api-save-btn">Save &amp; Apply</button>
         <span id="ext-api-status" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <!-- Orchestration -->
+    <div id="cfg-panel-orchestration" class="cfg-panel">
+      <p class="panel-sub">Configure multi-agent routing. The default mode is saved to <code>config.local.yaml</code> and takes effect immediately. Agent definitions (models, roles) take effect on the next request.</p>
+
+      <div class="orch-cfg-section">
+
+        <!-- Orchestrator card -->
+        <div class="orch-card">
+          <div class="orch-card-header">
+            <span class="orch-card-title">Orchestrator</span>
+            <span class="orch-card-badge">Routes requests</span>
+          </div>
+          <div class="orch-card-body">
+            <div class="orch-field-group">
+              <label for="orch-model-select">Model</label>
+              <select id="orch-model-select"></select>
+            </div>
+            <div class="orch-field-group">
+              <label for="orch-temp">Temperature</label>
+              <input type="number" id="orch-temp" min="0" max="1" step="0.05" value="0.1">
+            </div>
+            <div class="orch-field-group span2">
+              <label for="orch-role">Role prompt</label>
+              <textarea id="orch-role" placeholder="Intent routing and task decomposition. You never call tools directly…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workers card -->
+        <div class="orch-card">
+          <div class="orch-card-header">
+            <span class="orch-card-title">Workers</span>
+            <span class="orch-card-badge">Execute tasks</span>
+          </div>
+          <div class="orch-worker-tabs" role="tablist">
+            <button class="orch-worker-tab active" data-worker="freshdesk" role="tab">Freshdesk</button>
+            <button class="orch-worker-tab" data-worker="freshservice" role="tab">Freshservice</button>
+            <button class="orch-worker-tab" data-worker="rag" role="tab">RAG</button>
+          </div>
+          <!-- Freshdesk -->
+          <div class="orch-worker-pane active" id="orch-pane-freshdesk">
+            <div class="orch-field-group span2">
+              <label for="w-freshdesk-model-select">Model</label>
+              <select id="w-freshdesk-model-select"></select>
+            </div>
+            <div class="orch-field-group">
+              <label>Temperature</label>
+              <input type="number" id="w-freshdesk-temp" min="0" max="1" step="0.05" value="0.3">
+            </div>
+            <div class="orch-field-group">
+              <label>Tools pattern</label>
+              <input type="text" id="w-freshdesk-tools" placeholder="freshdesk_*">
+            </div>
+            <div class="orch-field-group span2">
+              <label>Role prompt</label>
+              <textarea id="w-freshdesk-role" placeholder="You are the Freshdesk specialist…"></textarea>
+            </div>
+          </div>
+          <!-- Freshservice -->
+          <div class="orch-worker-pane" id="orch-pane-freshservice">
+            <div class="orch-field-group span2">
+              <label for="w-freshservice-model-select">Model</label>
+              <select id="w-freshservice-model-select"></select>
+            </div>
+            <div class="orch-field-group">
+              <label>Temperature</label>
+              <input type="number" id="w-freshservice-temp" min="0" max="1" step="0.05" value="0.3">
+            </div>
+            <div class="orch-field-group">
+              <label>Tools pattern</label>
+              <input type="text" id="w-freshservice-tools" placeholder="freshservice_*">
+            </div>
+            <div class="orch-field-group span2">
+              <label>Role prompt</label>
+              <textarea id="w-freshservice-role" placeholder="You are the Freshservice specialist…"></textarea>
+            </div>
+          </div>
+          <!-- RAG -->
+          <div class="orch-worker-pane" id="orch-pane-rag">
+            <div class="orch-field-group span2">
+              <label for="w-rag-model-select">Model</label>
+              <select id="w-rag-model-select"></select>
+            </div>
+            <div class="orch-field-group">
+              <label>Temperature</label>
+              <input type="number" id="w-rag-temp" min="0" max="1" step="0.05" value="0.2">
+            </div>
+            <div class="orch-field-group">
+              <label>Tools pattern</label>
+              <input type="text" id="w-rag-tools" placeholder="rag_*">
+            </div>
+            <div class="orch-field-group span2">
+              <label>Role prompt</label>
+              <textarea id="w-rag-role" placeholder="You are the knowledge base specialist…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:var(--sp-2);align-items:center">
+          <button class="btn btn-primary" id="orch-save-btn">Save</button>
+          <span id="orch-save-status" aria-live="polite"></span>
+        </div>
+
       </div>
     </div>
 
@@ -1931,7 +2377,7 @@ const el = (tag, props = {}, ...children) => {
 const fmt = ts => new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
 /* ── State ────────────────────────────────────────────────────── */
-const S = { history: [], streaming: false, csvData: null, disabledServers: new Set(), importType: 'freshdesk_tickets', rowToolSeen: false };
+const S = { history: [], streaming: false, csvData: null, disabledServers: new Set(), importType: 'freshdesk_tickets', rowToolSeen: false, mode: 'direct', models: [], _directModel: null };
 
 /* ── Tabs ─────────────────────────────────────────────────────── */
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1944,10 +2390,87 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+/* ── Mode toggle ──────────────────────────────────────────────── */
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (S.streaming) return;   // don't switch mid-stream
+    const newMode = btn.dataset.mode;
+    syncModeToggle(newMode);
+    // Persist mode to config so it survives page reload
+    fetch('/api/config/orchestration', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mode: newMode }),
+    }).catch(e => console.warn('mode persist:', e));
+  });
+});
+
+/* ── Orchestration trace panel ────────────────────────────────── */
+function injectOrchTrace(trace, msgWrap) {
+  const isFallback = trace.fallback === true;
+
+  const panel = el('div', {className: 'orch-trace'});
+
+  // Header (toggle button)
+  const hdr = el('button', {className: 'orch-trace-header'});
+  hdr.setAttribute('aria-expanded', 'false');
+  const lbl = el('span', {
+    className: 'orch-trace-label' + (isFallback ? ' fallback' : ''),
+    textContent: isFallback ? 'Multi-agent — Fallback to Direct' : 'Multi-agent Routing',
+  });
+  const chev = el('span', {className: 'orch-trace-chevron', textContent: '▶'});
+  hdr.append(lbl, chev);
+  panel.appendChild(hdr);
+
+  // Body (collapsed by default — user expands to inspect routing decision)
+  const body = el('div', {className: 'orch-trace-body'});
+
+  if (isFallback) {
+    const row = el('div', {className: 'orch-field'});
+    row.append(
+      el('span', {className: 'orch-field-label', textContent: 'Reason'}),
+      el('span', {className: 'orch-field-value fallback', textContent: trace.reason || 'Unknown error'}),
+    );
+    body.appendChild(row);
+  } else {
+    const fields = [
+      { label: 'Worker',    value: trace.delegate_to, badge: true },
+      { label: 'RAG first', value: trace.rag_first,   bool: true  },
+      { label: 'Intent',    value: trace.intent                    },
+      { label: 'Context',   value: trace.context                   },
+    ];
+    fields.forEach(({ label, value, badge, bool }) => {
+      if (value === undefined || value === null || value === '') return;
+      const row = el('div', {className: 'orch-field'});
+      row.appendChild(el('span', {className: 'orch-field-label', textContent: label}));
+      if (badge) {
+        row.appendChild(el('span', {className: 'orch-delegate-badge', textContent: String(value)}));
+      } else if (bool) {
+        const cls = value ? 'orch-bool-yes' : 'orch-bool-no';
+        row.appendChild(el('span', {className: `orch-field-value ${cls}`, textContent: value ? 'yes' : 'no'}));
+      } else {
+        row.appendChild(el('span', {className: 'orch-field-value', textContent: String(value)}));
+      }
+      body.appendChild(row);
+    });
+  }
+
+  panel.appendChild(body);
+
+  hdr.addEventListener('click', () => {
+    const open = body.classList.toggle('open');
+    chev.classList.toggle('open', open);
+    hdr.setAttribute('aria-expanded', String(open));
+  });
+
+  msgWrap.appendChild(panel);
+}
+
 /* ── Models ───────────────────────────────────────────────────── */
 async function loadModels() {
   try {
     const { models, default: def } = await fetch('/api/models').then(r => r.json());
+    S.models = models.filter(m => m.type !== 'image');
     const sel = $('model-select');
     sel.innerHTML = '';
 
@@ -1988,6 +2511,7 @@ async function loadModels() {
       sel.appendChild(og);
     }
     addGroup('Other local models', extra, 'ollama_model');
+    _populateOrchModelSelects();
   } catch(e) { console.error('models:', e); }
 }
 
@@ -2186,14 +2710,36 @@ async function sendMessage() {
   const input  = $('chat-input');
   const model  = $('model-select').value;
   const text   = input.value.trim();
-  if (!text) return;
+  if (!text && !pendingImage) return;
 
   input.value = '';
   input.style.height = '42px';
   input.dispatchEvent(new Event('input'));
 
-  addMsg('user').textContent = text;
-  S.history.push({role: 'user', content: text});
+  // Build user bubble (with optional image thumbnail)
+  const userBubble = addMsg('user');
+  if (pendingImage) {
+    const thumb = el('img', {src: `data:${pendingImage.mime_type};base64,${pendingImage.b64}`, className: 'user-image', alt: 'Attached image'});
+    userBubble.appendChild(thumb);
+    if (text) userBubble.appendChild(document.createTextNode(text));
+  } else {
+    userBubble.textContent = text;
+  }
+
+  // History entry — multimodal content array when image attached
+  const historyContent = pendingImage
+    ? [{type:'image_url', image_url:{url:`data:${pendingImage.mime_type};base64,${pendingImage.b64}`}}, {type:'text', text}]
+    : text;
+  S.history.push({role: 'user', content: historyContent});
+
+  // Snapshot and clear pending image before fetch
+  const imagePayload = pendingImage ? {image_b64: pendingImage.b64, image_mime_type: pendingImage.mime_type} : {};
+  if (pendingImage) {
+    pendingImage = null;
+    $('img-preview').src = '';
+    $('img-preview-wrap').classList.remove('visible');
+    $('img-btn').classList.remove('has-image');
+  }
 
   const bubble = addMsg('assistant', model);
   bubble.classList.add('streaming');
@@ -2208,14 +2754,14 @@ async function sendMessage() {
   const controller   = new AbortController();
   let lastEventTime  = Date.now();
   const timeoutTimer = setInterval(() => {
-    if (Date.now() - lastEventTime > 30_000) controller.abort();
+    if (Date.now() - lastEventTime > 240_000) controller.abort();
   }, 5_000);
 
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({message: text, model, history: S.history.slice(0,-1), disabled_servers: [...S.disabledServers]}),
+      body: JSON.stringify({message: text, model, mode: S.mode, history: S.history.slice(0,-1), disabled_servers: [...S.disabledServers], ...imagePayload}),
       signal: controller.signal,
     });
 
@@ -2240,9 +2786,39 @@ async function sendMessage() {
         if (!data) continue;
         try {
           const p = JSON.parse(data);
-          if      (event === 'text')        { reply += p.chunk; bubble.textContent = reply; scrollBottom(); }
+          if (event === 'text') {
+            // Clear the in-flight phase chip on the first real token
+            bubble.parentElement.querySelector('.agent-phase')?.remove();
+            reply += p.chunk; bubble.textContent = reply; scrollBottom();
+          }
+          else if (event === 'agent_phase') {
+            // Replace any existing phase chip with the updated stage
+            bubble.parentElement.querySelector('.agent-phase')?.remove();
+            const labels = {
+              'routing':            'Routing request...',
+              'retrieving context': 'Retrieving from knowledge base...',
+              'freshdesk':          'Freshdesk agent responding...',
+              'freshservice':       'Freshservice agent responding...',
+              'rag':                'Knowledge base agent responding...',
+            };
+            const chip = el('div', {className: 'agent-phase'});
+            chip.appendChild(el('div', {className: 'agent-phase-dot'}));
+            chip.appendChild(el('span', {className: 'agent-phase-text', textContent: labels[p.phase] || `${p.phase}...`}));
+            bubble.insertAdjacentElement('beforebegin', chip);
+          }
           else if (event === 'tool_call')   { addToolCall(p.tool); recordActivity(p.tool, model); _toolCount++; _lastTool = p.tool; if (p.tool === 'rag_query') _ragQueried = true; }
           else if (event === 'tool_result') { if (_lastTool === 'rag_query') { try { const rr = JSON.parse(p.result); if (rr.success === false) { _ragOk = false; } else if (rr.results) { _ragOk = true; _ragDist = Math.min(...rr.results.map(x => x.distance)); } } catch {} } }
+          else if (event === 'orchestration_trace') {
+            injectOrchTrace(p, bubble.parentElement);
+            // If RAG was prefetched, inject a persistent grounding badge before the response
+            const ragInvolved = p.rag_first || (typeof p.delegate_to === 'string' && p.delegate_to.includes('rag'));
+            if (ragInvolved && !p.fallback) {
+              const badge = el('div', {className: 'rag-context-badge'});
+              badge.appendChild(el('div', {className: 'rag-context-bar'}));
+              badge.appendChild(el('span', {className: 'rag-context-text', textContent: 'Context retrieved from knowledge base'}));
+              bubble.insertAdjacentElement('beforebegin', badge);
+            }
+          }
           else if (event === 'image_generating') { bubble.textContent = 'Generating image…'; }
           else if (event === 'image_done') {
             bubble.classList.remove('streaming');
@@ -2283,6 +2859,31 @@ async function sendMessage() {
     input.focus();
   }
 }
+
+// ── Image attachment ───────────────────────────────────────────
+let pendingImage = null; // { b64, mime_type }
+$('img-btn').addEventListener('click', () => $('img-file-input').click());
+$('img-file-input').addEventListener('change', () => {
+  const file = $('img-file-input').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const mime = dataUrl.split(';')[0].slice(5);
+    pendingImage = {b64: dataUrl.split(',')[1], mime_type: mime};
+    $('img-preview').src = dataUrl;
+    $('img-preview-wrap').classList.add('visible');
+    $('img-btn').classList.add('has-image');
+  };
+  reader.readAsDataURL(file);
+  $('img-file-input').value = '';
+});
+$('img-clear').addEventListener('click', () => {
+  pendingImage = null;
+  $('img-preview').src = '';
+  $('img-preview-wrap').classList.remove('visible');
+  $('img-btn').classList.remove('has-image');
+});
 
 $('send-btn').addEventListener('click', sendMessage);
 $('chat-input').addEventListener('keydown', e => {
@@ -2595,7 +3196,10 @@ $('csv-run-btn').addEventListener('click', async () => {
     ragStatus.textContent = msg;
   }
 
+  let _ragLoading = false;
   async function loadRagDocuments() {
+    if (_ragLoading) return;
+    _ragLoading = true;
     try {
       const collectionsRes = await fetch('/api/rag/collections').then(r => r.json());
       const list = $('rag-doc-list');
@@ -2650,6 +3254,8 @@ $('csv-run-btn').addEventListener('click', async () => {
       }
     } catch {
       /* silently ignore — RAG server may not be connected */
+    } finally {
+      _ragLoading = false;
     }
   }
 
@@ -2674,10 +3280,210 @@ document.querySelectorAll('.cfg-tab-btn').forEach(btn => {
     const panel = $('cfg-panel-' + btn.dataset.cfgTab);
     if (panel) {
       panel.classList.add('active');
-      if (btn.dataset.cfgTab === 'mcp') loadCfgMcpDetails();
-      if (btn.dataset.cfgTab === 'advanced') loadConfig();
+      if (btn.dataset.cfgTab === 'mcp')           loadCfgMcpDetails();
+      if (btn.dataset.cfgTab === 'advanced')       loadConfig();
+      if (btn.dataset.cfgTab === 'orchestration')  loadOrchConfig();
     }
   });
+});
+
+/* ── Orchestration config ─────────────────────────────────────── */
+
+// Worker tab switcher inside the workers card
+document.querySelectorAll('.orch-worker-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.orch-worker-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.orch-worker-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const pane = $('orch-pane-' + btn.dataset.worker);
+    if (pane) pane.classList.add('active');
+  });
+});
+
+
+
+// Sync the chat-panel "Direct / Multi-agent" toggle to a given mode value
+function syncModeToggle(mode) {
+  S.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    const active = b.dataset.mode === mode;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+
+  const modelSel   = $('model-select');
+  const modelLabel = document.querySelector('#model-bar label[for="model-select"]');
+  const isOrch     = mode === 'orchestrated';
+
+  if (isOrch) {
+    // Save current direct-mode selection so we can restore it on switch-back
+    if (!S._directModel) S._directModel = modelSel.value;
+
+    // Show the configured orchestrator model as context — picker is locked (read-only)
+    const orchModelVal = $('orch-model-select')?.value || '';
+    const orchEntry    = S.models.find(m => m.ollama_model === orchModelVal);
+    modelSel.querySelector('option[data-orch-synthetic]')?.remove();
+    if (orchEntry && [...modelSel.options].some(o => o.value === orchEntry.display_name)) {
+      modelSel.value = orchEntry.display_name;
+    } else if (orchModelVal) {
+      const synth = new Option(orchEntry?.display_name || orchModelVal, orchModelVal, true, true);
+      synth.dataset.orchSynthetic = '1';
+      modelSel.prepend(synth);
+    }
+
+    if (modelLabel) modelLabel.textContent = 'Orchestrator';
+    modelSel.disabled = true;
+    modelSel.title = 'Read-only in multi-agent mode — change the orchestrator model in Settings.';
+    $('model-bar').classList.add('orch-active');
+  } else {
+    // Restore pre-orchestration direct-mode selection
+    modelSel.querySelector('option[data-orch-synthetic]')?.remove();
+    if (S._directModel && [...modelSel.options].some(o => o.value === S._directModel)) {
+      modelSel.value = S._directModel;
+    }
+    S._directModel = null;
+    if (modelLabel) modelLabel.textContent = 'Model';
+    modelSel.disabled = false;
+    modelSel.title = '';
+    $('model-bar').classList.remove('orch-active');
+  }
+}
+
+// Split a model_string (e.g. "anthropic:claude-sonnet-4-6") into {provider, model}.
+// Ollama models have no prefix (e.g. "qwen2.5:7b") — the colon is part of the model name.
+function _splitModelString(val) {
+  const known = ['anthropic', 'openai', 'huggingface'];
+  if (!val) return { provider: 'ollama', model: '' };
+  for (const p of known) {
+    if (val.startsWith(p + ':')) return { provider: p, model: val.slice(p.length + 1) };
+  }
+  return { provider: 'ollama', model: val };
+}
+
+// Build the model_string used as <option> values in orchestration selects.
+function _orchModelString(provider, model) {
+  if (!model) return '';
+  if (!provider || provider === 'ollama') return model;
+  return `${provider}:${model}`;
+}
+
+// Populate all orchestration model <select> elements from S.models.
+function _populateOrchModelSelects() {
+  const AGENTS = ['orch', 'w-freshdesk', 'w-freshservice', 'w-rag'];
+  AGENTS.forEach(prefix => {
+    const sel = $(`${prefix}-model-select`);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '';
+    const local       = S.models.filter(m => !m.provider);
+    const anthropic   = S.models.filter(m => m.provider === 'anthropic');
+    const openai      = S.models.filter(m => m.provider === 'openai');
+    const huggingface = S.models.filter(m => m.provider === 'huggingface');
+    const addGrp = (label, items) => {
+      if (!items.length) return;
+      const og = el('optgroup'); og.label = label;
+      items.forEach(m => og.appendChild(new Option(m.display_name, m.ollama_model)));
+      sel.appendChild(og);
+    };
+    addGrp('Local — Ollama', local);
+    addGrp('Anthropic — Claude', anthropic);
+    addGrp('OpenAI — GPT', openai);
+    addGrp('HuggingFace', huggingface);
+    if (current) sel.value = current;
+  });
+}
+
+// Set an orchestration model select, adding a custom option if the value isn't in the list.
+function _setOrchModelSelect(id, provider, model) {
+  const sel = $(id);
+  if (!sel) return;
+  const val = _orchModelString(provider, model);
+  if (!val) return;
+  if ([...sel.options].some(o => o.value === val)) {
+    sel.value = val;
+  } else {
+    sel.appendChild(new Option(`${val} (not in current model list)`, val, true, true));
+  }
+}
+
+function _populateOrchForm(data) {
+  const orch = data.agents?.orchestrator || {};
+  _setOrchModelSelect('orch-model-select', orch.provider, orch.model);
+  $('orch-temp').value = orch.temperature ?? 0.1;
+  $('orch-role').value = orch.role || '';
+
+  const workers = data.agents?.workers || {};
+  ['freshdesk','freshservice','rag'].forEach(name => {
+    const w = workers[name] || {};
+    _setOrchModelSelect(`w-${name}-model-select`, w.provider, w.model);
+    $(`w-${name}-temp`).value  = w.temperature ?? 0.3;
+    $(`w-${name}-tools`).value = typeof w.tools === 'string' ? w.tools : `${name}_*`;
+    $(`w-${name}-role`).value  = w.role || '';
+  });
+}
+
+async function loadOrchConfig() {
+  try {
+    const data = await fetch('/api/config/orchestration').then(r => r.json());
+    // Populate the orch form first so orch-model-select has a value before syncModeToggle reads it
+    _populateOrchForm(data);
+    syncModeToggle(data.mode || 'direct');
+  } catch(e) { console.warn('load orch config:', e); }
+}
+
+function _readOrchForm() {
+  const makeWorker = name => {
+    const { provider, model } = _splitModelString($(`w-${name}-model-select`).value);
+    return {
+      provider,
+      model,
+      temperature: parseFloat($(`w-${name}-temp`).value) || 0.3,
+      tools:       $(`w-${name}-tools`).value.trim(),
+      role:        $(`w-${name}-role`).value.trim(),
+    };
+  };
+  const mode = S.mode || 'direct';
+  const { provider: orchProvider, model: orchModel } = _splitModelString($('orch-model-select').value);
+  return {
+    mode,
+    agents: {
+      orchestrator: {
+        provider:    orchProvider,
+        model:       orchModel,
+        temperature: parseFloat($('orch-temp').value) || 0.1,
+        role:        $('orch-role').value.trim(),
+      },
+      workers: {
+        freshdesk:    makeWorker('freshdesk'),
+        freshservice: makeWorker('freshservice'),
+        rag:          makeWorker('rag'),
+      },
+    },
+  };
+}
+
+function flashOrchStatus(msg, type = '') {
+  const s = $('orch-save-status');
+  s.textContent = msg; s.className = type || '';
+  if (type === 'ok') setTimeout(() => { s.textContent = ''; s.className = ''; }, 4000);
+}
+
+$('orch-save-btn').addEventListener('click', async () => {
+  const payload = _readOrchForm();
+  try {
+    const r = await fetch('/api/config/orchestration', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      syncModeToggle(payload.mode);
+      flashOrchStatus('✓ Saved — agent changes take effect on next request', 'ok');
+    } else {
+      flashOrchStatus('⚠ ' + (d.detail || 'Save failed'), 'error');
+    }
+  } catch(e) { flashOrchStatus('⚠ ' + e.message, 'error'); }
 });
 
 /* ── External APIs ────────────────────────────────────────────── */
@@ -3006,6 +3812,7 @@ document.addEventListener('keydown', e => {
   if (taglineEl) taglineEl.textContent = getTimeTagline();
 
   await Promise.all([loadModels(), loadMCPWithBoot(), loadExternalApis()]);
+  loadOrchConfig();     // sync mode toggle + populate orchestration form from saved config
   loadHFAvailability(); // fire-and-forget: greys out inaccessible HF models async
   setInterval(loadMCP, 30_000);
 

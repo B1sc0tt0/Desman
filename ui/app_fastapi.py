@@ -22,11 +22,22 @@ import asyncio
 import csv
 import io
 import json
+import os
 import re
 import sys
 import threading
 from pathlib import Path
 from typing import AsyncGenerator
+
+# Load root-level .env (desman/.env) before reading any env vars.
+# This lets users set SSL_VERIFY, NO_PROXY etc. without touching their shell profile.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(Path(__file__).parent.parent / ".env")
+except ImportError:
+    pass
+
+_SSL_VERIFY = os.getenv("SSL_VERIFY", "true").strip().lower() != "false"
 
 import uvicorn
 from contextlib import asynccontextmanager
@@ -275,6 +286,61 @@ async def api_config_post(body: ConfigWriteBody):
     return {"ok": True}
 
 
+# ── Orchestration config ──────────────────────────────────────────────────────
+
+@app.get("/api/config/orchestration")
+async def api_orch_config_get():
+    """Return current mode and agents block from config."""
+    import yaml as _yaml
+    if not CONFIG_PATH.exists():
+        return {"mode": "direct", "agents": {}}
+    cfg = _yaml.safe_load(CONFIG_PATH.read_text()) or {}
+    return {
+        "mode": cfg.get("mode", "direct"),
+        "agents": cfg.get("agents", {}),
+    }
+
+
+class OrchConfigBody(BaseModel):
+    mode: str                   # "direct" | "orchestrated"
+    agents: dict | None = None  # full agents block; None = leave unchanged
+
+
+@app.post("/api/config/orchestration")
+async def api_orch_config_post(body: OrchConfigBody):
+    """
+    Persist mode and/or agents block to config.local.yaml and update in-memory config.
+
+    Mode changes take effect immediately (no restart needed).
+    Agent definition changes (provider, model, role) take effect on the next request
+    because OrchestratorAgent and WorkerAgent read cfg at call time.
+    """
+    import yaml as _yaml
+    global _cfg
+
+    if body.mode not in ("direct", "orchestrated"):
+        raise HTTPException(status_code=400, detail=f"Invalid mode: '{body.mode}'. Must be 'direct' or 'orchestrated'.")
+
+    # Read current on-disk config
+    if not CONFIG_PATH.exists():
+        raise HTTPException(status_code=404, detail="config.local.yaml not found")
+    raw = CONFIG_PATH.read_text()
+    cfg = _yaml.safe_load(raw) or {}
+
+    cfg["mode"] = body.mode
+    if body.agents is not None:
+        cfg["agents"] = body.agents
+
+    # Write back, then update the in-memory copy so the next request sees the change
+    CONFIG_PATH.write_text(_yaml.dump(cfg, default_flow_style=False, allow_unicode=True, sort_keys=False))
+    if _cfg is not None:
+        _cfg["mode"] = body.mode
+        if body.agents is not None:
+            _cfg["agents"] = body.agents
+
+    return {"ok": True}
+
+
 # ── External APIs ─────────────────────────────────────────────────────────────
 
 @app.get("/api/external-apis")
@@ -347,27 +413,32 @@ async def api_hf_check():
         payload = {
             "model": model_id,
             "messages": [{"role": "user", "content": "hi"}],
-            "max_tokens": 1,
+            "max_tokens": 8,
             "temperature": 0.1,
         }
         try:
-            async with httpx.AsyncClient(timeout=12.0) as client:
+            async with httpx.AsyncClient(timeout=12.0, verify=_SSL_VERIFY, trust_env=False) as client:
                 r = await client.post(
                     "https://router.huggingface.co/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                     json=payload,
                 )
-            if r.status_code == 200:
-                return model_id, "available"
             if r.status_code in (401, 403):
                 return model_id, "unauthorized"
             if r.status_code == 404:
                 return model_id, "not_found"
-            if r.status_code == 422:
-                return model_id, "available"  # model reached, just rejected our minimal input
-            return model_id, "error"
+            if r.status_code == 400:
+                try:
+                    err = r.json().get("error", {})
+                    if err.get("code") == "model_not_supported" or "not supported" in err.get("message", ""):
+                        return model_id, "not_found"
+                except Exception:
+                    pass
+            # 200, 422, 429, 5xx — model is reachable (rate limit or transient error)
+            return model_id, "available"
         except Exception:
-            return model_id, "error"
+            # Network / timeout — assume available rather than falsely blocking
+            return model_id, "available"
 
     results = await asyncio.gather(*[check(m["model_id"]) for m in model_list])
     return dict(results)
@@ -381,6 +452,9 @@ class ChatBody(BaseModel):
     max_iterations: int | None = None  # override cfg default; used by CSV row processing
     history: list[dict] = []
     disabled_servers: list[str] = []
+    image_b64: str | None = None        # base64-encoded image for multimodal models
+    image_mime_type: str = "image/jpeg"
+    mode: str = ""      # "direct" | "orchestrated" | "" (inherit from config)
 
 
 def _sse(event: str, data: dict) -> str:
@@ -406,7 +480,7 @@ async def _image_generator(prompt: str, hf_model: str) -> AsyncGenerator[str, No
     }
 
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=120.0, verify=_SSL_VERIFY, trust_env=False) as client:
             r = await client.post(
                 "https://router.huggingface.co/v1/images/generations",
                 headers=headers,
@@ -460,19 +534,85 @@ async def _image_generator(prompt: str, hf_model: str) -> AsyncGenerator[str, No
 
 
 async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
-    resolved = _resolve_model(body.model)
-    if not resolved:
-        yield _sse("error", {"message": f"Unknown model: {body.model}"})
-        return
+    # ── Determine effective mode ───────────────────────────────────────────────
+    # Priority: request field > config file > default ("direct")
+    request_mode  = (body.mode or "").strip().lower()
+    config_mode   = (_cfg or {}).get("mode", "direct")
+    effective_mode = request_mode if request_mode in ("direct", "orchestrated") else config_mode
 
-    # Image model — bypass agent loop entirely
-    if resolved["type"] == "image":
+    # ── Model resolution ───────────────────────────────────────────────────────
+    resolved = _resolve_model(body.model)
+
+    # Image models always bypass the agent loop regardless of mode
+    if resolved and resolved["type"] == "image":
         async for chunk in _image_generator(body.message, resolved["model_string"]):
             yield chunk
         yield _sse("done", {})
         return
 
-    model_string = resolved["model_string"]
+    # ── Demo prep: intercept before mode routing ───────────────────────────────
+    # Runs regardless of direct/orchestrated mode — the three-worker flow manages
+    # its own workers internally and does not go through the orchestrator.
+    if isinstance(body.message, str) and not body.image_b64:
+        from agent.demo_prep import is_demo_prep_intent  # noqa: PLC0415
+        if is_demo_prep_intent(body.message):
+            if not resolved:
+                yield _sse("error", {"message": f"Unknown model: {body.model}"})
+                return
+            model_string = resolved["model_string"]
+            cfg = _cfg
+            sm = _session_manager
+            ext = load_external_apis()
+
+            def run_demo_prep_in_thread():
+                from agent.demo_prep import run_demo_prep  # noqa: PLC0415
+                try:
+                    for token in run_demo_prep(body.message, body.history, model_string, cfg, sm, ext):
+                        asyncio.run_coroutine_threadsafe(queue.put(token), loop).result()
+                except Exception as e:
+                    asyncio.run_coroutine_threadsafe(
+                        queue.put(json.dumps({"__error__": str(e)})), loop
+                    ).result()
+                finally:
+                    asyncio.run_coroutine_threadsafe(queue.put(None), loop).result()
+
+            queue: asyncio.Queue[str | None] = asyncio.Queue()
+            loop = asyncio.get_event_loop()
+            thread = threading.Thread(target=run_demo_prep_in_thread, daemon=True)
+            thread.start()
+
+            text_buffer = ""
+            while True:
+                token = await queue.get()
+                if token is None:
+                    break
+                try:
+                    parsed = json.loads(token)
+                    if "__error__" in parsed:
+                        yield _sse("error", {"message": parsed["__error__"]})
+                        continue
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                text_buffer += token
+                if len(text_buffer) >= 4 or "\n" in text_buffer:
+                    yield _sse("text", {"chunk": text_buffer})
+                    text_buffer = ""
+            if text_buffer:
+                yield _sse("text", {"chunk": text_buffer})
+            yield _sse("done", {})
+            return
+
+    if effective_mode == "direct":
+        # Direct mode requires a valid model selection
+        if not resolved:
+            yield _sse("error", {"message": f"Unknown model: {body.model}"})
+            return
+        model_string = resolved["model_string"]
+    else:
+        # Orchestrated mode: orchestrator/workers pick their own models from config.
+        # Still resolve the selected model for fallback in case orchestration fails.
+        model_string = resolved["model_string"] if resolved else (_cfg or {}).get("agent", {}).get("default_model", "")
+
     external_apis = load_external_apis()
     cfg = _cfg
     if body.max_iterations is not None:
@@ -481,14 +621,42 @@ async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
         cfg["agent"]["max_iterations"] = body.max_iterations
     sm = _session_manager
 
-    # Run blocking agent loop in a thread, bridge via asyncio queue
+    # Run blocking agent/orchestration loop in a thread, bridge via asyncio queue
     queue: asyncio.Queue[str | None] = asyncio.Queue()
     loop = asyncio.get_event_loop()
 
     def run_in_thread():
-        from agent.loop import run as agent_run
         try:
-            for token in agent_run(body.message, body.history, model_string, cfg, sm, body.disabled_servers, external_apis):
+            user_content: str | list = body.message
+            if body.image_b64:
+                user_content = [
+                    {"type": "image_url", "image_url": {"url": f"data:{body.image_mime_type};base64,{body.image_b64}"}},
+                    {"type": "text", "text": body.message},
+                ]
+
+            if effective_mode == "orchestrated":
+                try:
+                    from agent.orchestration import run_orchestrated
+                except ImportError:
+                    raise RuntimeError(
+                        "Multi-agent mode is not available yet — agent/orchestration.py is missing. "
+                        "Switch back to Direct mode in the mode selector."
+                    )
+                # Pass the plain text message to the orchestrator
+                # (image payloads are not supported in orchestrated mode)
+                gen = run_orchestrated(
+                    user_message=body.message,
+                    history=body.history,
+                    cfg=cfg,
+                    session_manager=sm,
+                    external_apis=external_apis,
+                    disabled_servers=body.disabled_servers,
+                )
+            else:
+                from agent.loop import run as agent_run
+                gen = agent_run(user_content, body.history, model_string, cfg, sm, body.disabled_servers, external_apis)
+
+            for token in gen:
                 asyncio.run_coroutine_threadsafe(queue.put(token), loop).result()
         except Exception as e:
             asyncio.run_coroutine_threadsafe(
@@ -508,15 +676,15 @@ async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
         if token is None:
             break
 
-        # Detect tool-call marker emitted by agent loop
-        # Format: *[Calling tool: <name>...]*\n
+        # Detect markers emitted by agent loop / orchestration runner
         if token.startswith("*[Calling tool:"):
-            # Flush any pending text first
+            # Format: *[Calling tool: <name>...]*\n
             if text_buffer:
                 yield _sse("text", {"chunk": text_buffer})
                 text_buffer = ""
             tool_name = re.sub(r"^\*\[Calling tool: (.+?)\.\.\.\]\*.*$", r"\1", token.strip())
             yield _sse("tool_call", {"tool": tool_name, "status": "calling"})
+
         elif token.startswith("*[Tool result:"):
             # Format: *[Tool result: <raw_result>]*\n
             raw = re.sub(r"^\*\[Tool result: (.*)\]\*\s*$", r"\1", token.strip(), flags=re.DOTALL)
@@ -524,8 +692,29 @@ async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
                 yield _sse("text", {"chunk": text_buffer})
                 text_buffer = ""
             yield _sse("tool_result", {"result": raw})
+
+        elif token.startswith("*[Agent phase:"):
+            # Format: *[Agent phase: routing]*\n
+            phase = re.sub(r"^\*\[Agent phase: (.+?)\]\*\s*$", r"\1", token.strip())
+            if text_buffer:
+                yield _sse("text", {"chunk": text_buffer})
+                text_buffer = ""
+            yield _sse("agent_phase", {"phase": phase})
+
+        elif token.startswith("*[Orchestration trace:"):
+            # Format: *[Orchestration trace: <json>]*\n  — emitted by orchestration.py
+            raw = re.sub(r"^\*\[Orchestration trace: (.*)\]\*\s*$", r"\1", token.strip(), flags=re.DOTALL)
+            if text_buffer:
+                yield _sse("text", {"chunk": text_buffer})
+                text_buffer = ""
+            try:
+                trace_data = json.loads(raw)
+            except Exception:
+                trace_data = {"raw": raw}
+            yield _sse("orchestration_trace", trace_data)
+
         else:
-            # Check for embedded error
+            # Check for embedded error signal
             try:
                 parsed = json.loads(token)
                 if "__error__" in parsed:
@@ -534,7 +723,7 @@ async def _chat_generator(body: ChatBody) -> AsyncGenerator[str, None]:
             except (json.JSONDecodeError, TypeError):
                 pass
             text_buffer += token
-            # Stream text chunks as they accumulate
+            # Stream text chunks as they accumulate (threshold: 4 chars or newline)
             if len(text_buffer) >= 4 or "\n" in text_buffer:
                 yield _sse("text", {"chunk": text_buffer})
                 text_buffer = ""
