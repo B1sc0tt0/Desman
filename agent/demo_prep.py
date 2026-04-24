@@ -102,6 +102,33 @@ _CONTEXT_WORDS = (
 )
 
 
+# Phrases that instruct the pipeline to skip RAG retrieval
+_SKIP_RAG_SIGNALS = (
+    "do not retrieve",
+    "don't retrieve",
+    "skip rag",
+    "no rag",
+    "without rag",
+    "not from rag",
+    "do not use rag",
+    "don't use rag",
+    "no knowledge base",
+    "skip knowledge base",
+    "without knowledge base",
+    "do not use the knowledge base",
+    "don't use the knowledge base",
+    "just research",
+    "web only",
+    "web search only",
+    "just web",
+)
+
+
+def _should_skip_rag(message: str) -> bool:
+    msg = message.lower()
+    return any(s in msg for s in _SKIP_RAG_SIGNALS)
+
+
 def is_demo_prep_intent(message: str) -> bool:
     """
     Return True when the message looks like a demo prep / discovery prep request.
@@ -167,8 +194,27 @@ _W1_SYSTEM = (
     "Also search for investor relations news — earnings announcements, guidance updates, "
     "analyst day presentations, press releases, or major capital allocation decisions. "
     "Use the search tool to gather accurate, current information. "
-    "Return your findings as clear prose — you will be summarised by a downstream agent."
+    "Return your findings in full detail — preserve all specific facts, numbers, dates, names, "
+    "and source references exactly as found. Do not summarise or condense. "
+    "A downstream agent will decide what to use — your job is to capture everything."
 )
+
+_W3_SYSTEM = """\
+You are a research synthesis assistant.
+Produce output that directly answers the user's request — no more, no less.
+Read the request carefully and tailor the format and scope accordingly:
+- "company overview" or "just research" → a detailed factual account of the company
+- "recent changes" or "announcements" → focus on org changes, leadership, investor relations news
+- "discovery briefing" or "discovery questions" → structured questions grounded in the research
+- "full briefing" or "demo prep" → a comprehensive preparation guide
+
+CRITICAL — completeness and trustworthiness:
+- Preserve all specific facts, numbers, dates, names, and figures from the research exactly as found.
+- Do not paraphrase or compress away detail. If a source says "revenue €3.32 billion in FY 2024", write that exactly.
+- Cite the source or context for every material claim (e.g. "per Q2 2025 earnings release", "according to company announcement").
+- If the research is insufficient for something the user asked, say so explicitly — do not fill gaps with generic statements.
+- Never hallucinate. Only assert what the research supports.\
+"""
 
 _W2_SYSTEM = (
     "You are a knowledge base retrieval specialist. "
@@ -368,22 +414,20 @@ def _w2_task(user_message: str, company_context: str) -> str:
 
 
 def _w3_task(user_message: str, company_context: str, rag_context: str) -> str:
-    parts = [f"Original request:\n{user_message}"]
+    parts = [f"User request:\n{user_message}"]
 
     if company_context:
-        parts.append(f"Company research:\n{company_context}")
+        parts.append(f"Company research (from web):\n{company_context}")
     else:
-        parts.append("Company research: not available — base the brief on the original request only.")
+        parts.append("Company research: not available — use the user's message as context only.")
 
     if rag_context:
         parts.append(f"Knowledge base content:\n{rag_context}")
-    else:
-        parts.append(
-            "Knowledge base content: not available — no RAG collections were found or queried. "
-            "Draw on general Freshdesk/Freshservice product knowledge for the brief."
-        )
 
-    parts.append("Using the above, produce the demo prep brief.")
+    parts.append(
+        "Produce output that directly answers the user's request above. "
+        "Match the format and scope they specified — do not apply structure they did not ask for."
+    )
     return "\n\n".join(parts)
 
 
@@ -452,8 +496,11 @@ def run_demo_prep(
         company_context = user_message
 
     # ── Worker 2: RAG Retrieval ───────────────────────────────────────────────
-    if rag_tools:
-        yield "*[Retrieving relevant vertical content...]*\n"
+    skip_rag = _should_skip_rag(user_message)
+    if skip_rag:
+        yield "*[Skipping knowledge base — web research only as requested.]*\n"
+    elif rag_tools:
+        yield "*[Retrieving relevant knowledge base content...]*\n"
         rag_context = _collect_text(
             _agent_loop_run(
                 user_message=_w2_task(user_message, company_context),
@@ -467,21 +514,10 @@ def run_demo_prep(
                 tools_override=rag_tools,
             )
         )
-    else:
-        yield "*[RAG server not available — brief will rely on research only.]*\n"
 
     # ── Worker 3: Synthesis ───────────────────────────────────────────────────
-    prep_type = get_prep_type(user_message)
-    if prep_type == "discovery":
-        yield "*[Synthesising discovery preparation...]*\n"
-        synthesis_prompt = (
-            cfg.get("agent", {}).get("discovery_prep_prompt") or _DEFAULT_DISCOVERY_PREP_PROMPT
-        ).strip()
-    else:
-        yield "*[Synthesising demo preparation...]*\n"
-        synthesis_prompt = (
-            cfg.get("agent", {}).get("demo_prep_prompt") or _DEFAULT_DEMO_PREP_PROMPT
-        ).strip()
+    yield "*[Synthesising...]*\n"
+    synthesis_prompt = _W3_SYSTEM
 
     yield from _agent_loop_run(
         user_message=_w3_task(user_message, company_context, rag_context),

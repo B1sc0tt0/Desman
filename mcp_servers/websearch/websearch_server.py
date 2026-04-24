@@ -19,13 +19,15 @@ _PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
 _MODEL = "sonar"
 
 
+_MAX_CITATIONS = 8
+
+
 @mcp.tool()
-def search(query: str, max_results: int = 5) -> dict:
+def search(query: str) -> dict:
     """Search the web using Perplexity Sonar. Returns a research summary and source URLs.
 
     Args:
         query: Search query string (e.g. "Clariant AG Swiss specialty chemicals recent news")
-        max_results: Hint for how many sources to return (default 5, capped at 10)
 
     Returns:
         dict with 'summary' (synthesized answer), 'citations' (source URLs),
@@ -42,8 +44,6 @@ def search(query: str, max_results: int = 5) -> dict:
             ),
         }
 
-    max_results = min(max_results, 10)
-
     payload = {
         "model": _MODEL,
         "messages": [
@@ -53,9 +53,9 @@ def search(query: str, max_results: int = 5) -> dict:
             },
             {"role": "user", "content": query},
         ],
-        "max_tokens": 1024,
+        "max_tokens": 2048,
         "return_citations": True,
-        "search_recency_filter": "month",
+        "search_recency_filter": "year",
     }
 
     try:
@@ -80,7 +80,7 @@ def search(query: str, max_results: int = 5) -> dict:
     if choices:
         summary = choices[0].get("message", {}).get("content", "")
 
-    citations = data.get("citations", [])[:max_results]
+    citations = data.get("citations", [])[:_MAX_CITATIONS]
 
     # Build results list: summary entry + individual citation URLs
     results = []
