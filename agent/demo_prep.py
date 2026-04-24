@@ -154,11 +154,15 @@ def get_prep_type(message: str) -> str:
 # ── Worker system prompts ─────────────────────────────────────────────────────
 
 _W1_SYSTEM = (
-    "You are a pre-sales research assistant. "
-    "Given a company name and brief description, search the web and extract "
-    "structured context: industry, estimated size, geography, key products or services, "
+    "You are a business research assistant. "
+    "Given a company name and brief description, search the web and extract structured context. "
+    "Cover: industry, estimated size, geography, key products or services, "
     "likely operational pain points, and technology maturity signals. "
-    "Use the search tool to gather accurate information. "
+    "Also search for recent organisational changes — leadership appointments or departures, "
+    "restructuring, acquisitions, layoffs, or strategic pivots announced in the past 12 months. "
+    "Also search for investor relations news — earnings announcements, guidance updates, "
+    "analyst day presentations, press releases, or major capital allocation decisions. "
+    "Use the search tool to gather accurate, current information. "
     "Return your findings as clear prose — you will be summarised by a downstream agent."
 )
 
@@ -320,9 +324,16 @@ def _w1_task(user_message: str) -> str:
     return (
         f"Research the following company or prospect and return structured findings:\n\n"
         f"{user_message}\n\n"
-        "Use web search to find: industry, size, geography, key products/services, "
-        "operational pain points, and technology maturity signals. "
-        "Be specific and factual."
+        "Use multiple web searches to find:\n"
+        "1. Core profile — industry, size, geography, key products/services, "
+        "operational pain points, technology maturity signals.\n"
+        "2. Recent organisational changes — search '[company] leadership change OR restructuring "
+        "OR acquisition OR layoffs OR reorg 2024 2025'. Report any executive appointments or "
+        "departures, org restructuring, M&A activity, or strategic pivots.\n"
+        "3. Investor relations news — search '[company] earnings OR investor relations OR "
+        "annual report OR press release 2024 2025'. Report earnings results, guidance, "
+        "analyst day highlights, or major strategic announcements.\n"
+        "Be specific and factual. If a search returns no relevant results for a section, say so."
     )
 
 

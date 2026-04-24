@@ -2,13 +2,12 @@
 """
 Web search MCP server for Desman.
 
-Uses DuckDuckGo Search — no API key required.
-
-Use this tool to research companies, industries, and prospects
-before a demo or discovery call.
+Uses the Perplexity Sonar API (search model) — requires a PERPLEXITY_API_KEY.
+Set the key in mcp_servers/websearch/.env or via Settings → External APIs in the UI.
 """
-import time
+import os
 
+import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 
@@ -16,60 +15,85 @@ load_dotenv()
 
 mcp = FastMCP("Web Search Server")
 
+_PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
+_MODEL = "sonar"
+
 
 @mcp.tool()
 def search(query: str, max_results: int = 5) -> dict:
-    """Use this tool to research companies, industries, and prospects before a demo or
-    discovery call. Searches the web using DuckDuckGo — no API key required.
+    """Search the web using Perplexity Sonar. Returns a research summary and source URLs.
 
     Args:
-        query: Search query string (e.g. "Clariant AG Swiss specialty chemicals")
-        max_results: Maximum results to return (default 5, capped at 10)
+        query: Search query string (e.g. "Clariant AG Swiss specialty chemicals recent news")
+        max_results: Hint for how many sources to return (default 5, capped at 10)
 
     Returns:
-        dict with 'results': list of {title, url, snippet} entries,
-        and optional 'error' key if the search failed.
+        dict with 'summary' (synthesized answer), 'citations' (source URLs),
+        and 'results' list of {title, url, snippet} for downstream workers.
+        Contains 'error' key if the search failed.
     """
-    try:
-        from ddgs import DDGS
-    except ImportError:
+    api_key = os.environ.get("PERPLEXITY_API_KEY", "").strip()
+    if not api_key:
         return {
             "results": [],
             "error": (
-                "ddgs is not installed. "
-                "Run: uv pip install ddgs"
+                "PERPLEXITY_API_KEY is not set. "
+                "Add it in Settings → External APIs or in mcp_servers/websearch/.env."
             ),
         }
 
     max_results = min(max_results, 10)
 
-    def _run():
-        with DDGS() as ddgs:
-            return list(ddgs.text(query, max_results=max_results))
+    payload = {
+        "model": _MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": "Return factual, structured research. Be specific and cite sources.",
+            },
+            {"role": "user", "content": query},
+        ],
+        "max_tokens": 1024,
+        "return_citations": True,
+        "search_recency_filter": "month",
+    }
 
     try:
-        raw = _run()
+        resp = httpx.post(
+            _PERPLEXITY_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except httpx.HTTPStatusError as exc:
+        return {"results": [], "error": f"Perplexity API error {exc.response.status_code}: {exc.response.text[:200]}"}
     except Exception as exc:
-        err_str = str(exc).lower()
-        # Rate limit — wait 2 s and retry once
-        if any(indicator in err_str for indicator in ("ratelimit", "rate limit", "202", "429")):
-            time.sleep(2)
-            try:
-                raw = _run()
-            except Exception as exc2:
-                return {"results": [], "error": f"Rate limited after retry: {exc2}"}
-        else:
-            return {"results": [], "error": str(exc)}
+        return {"results": [], "error": str(exc)}
 
-    results = [
-        {
-            "title": r.get("title", ""),
-            "url": r.get("href", ""),
-            "snippet": r.get("body", ""),
-        }
-        for r in (raw or [])
-    ]
-    return {"results": results}
+    summary = ""
+    choices = data.get("choices", [])
+    if choices:
+        summary = choices[0].get("message", {}).get("content", "")
+
+    citations = data.get("citations", [])[:max_results]
+
+    # Build results list: summary entry + individual citation URLs
+    results = []
+    if summary:
+        results.append({"title": "Research Summary", "url": "", "snippet": summary})
+    for url in citations:
+        results.append({"title": "", "url": url, "snippet": ""})
+
+    return {
+        "summary": summary,
+        "citations": citations,
+        "results": results,
+    }
 
 
 # ── Start server ──────────────────────────────

@@ -363,6 +363,8 @@ class ExternalAPISaveBody(BaseModel):
     openai_enabled: bool = False
     huggingface_key: str = ""
     huggingface_enabled: bool = False
+    perplexity_key: str = ""
+    perplexity_enabled: bool = False
 
 
 @app.post("/api/external-apis")
@@ -388,8 +390,22 @@ async def api_external_apis_post(body: ExternalAPISaveBody):
             "api_key": resolve_key(body.huggingface_key, "huggingface"),
             "enabled": body.huggingface_enabled,
         },
+        "perplexity": {
+            "api_key": resolve_key(body.perplexity_key, "perplexity"),
+            "enabled": body.perplexity_enabled,
+        },
     }
     save_external_apis(data)
+
+    # Write Perplexity key to the websearch server's .env so the MCP subprocess picks it up
+    perplexity_key = data["perplexity"]["api_key"]
+    websearch_env = MCP_SERVERS_DIR / "websearch" / ".env"
+    try:
+        websearch_env.parent.mkdir(parents=True, exist_ok=True)
+        websearch_env.write_text(f"PERPLEXITY_API_KEY={perplexity_key}\n")
+    except Exception:
+        pass  # Non-fatal — key will apply on next restart
+
     return {"ok": True}
 
 

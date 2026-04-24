@@ -1020,9 +1020,10 @@ body {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
-.api-badge-anthropic { background: color-mix(in oklch, var(--red) 14%, transparent); color: var(--red); }
-.api-badge-openai    { background: color-mix(in oklch, var(--green-connected) 14%, transparent); color: oklch(55% 0.18 152); }
-.api-badge-hf        { background: color-mix(in oklch, var(--amber) 16%, transparent); color: oklch(62% 0.16 65); }
+.api-badge-anthropic   { background: color-mix(in oklch, var(--red) 14%, transparent); color: var(--red); }
+.api-badge-openai      { background: color-mix(in oklch, var(--green-connected) 14%, transparent); color: oklch(55% 0.18 152); }
+.api-badge-hf          { background: color-mix(in oklch, var(--amber) 16%, transparent); color: oklch(62% 0.16 65); }
+.api-badge-perplexity  { background: color-mix(in oklch, var(--blue) 14%, transparent); color: var(--blue); }
 .api-key-row { display: flex; gap: var(--sp-2); align-items: center; }
 .api-key-input {
   flex: 1;
@@ -2127,6 +2128,24 @@ button.cfg-tool-pill:hover, button.cfg-tool-pill.active {
     <!-- External APIs -->
     <div id="cfg-panel-external" class="cfg-panel active">
       <p class="panel-sub">Add API keys to run cloud-hosted models alongside your local ones. Keys are saved on this machine only and never sent anywhere else.</p>
+
+      <div class="api-card" id="api-card-perplexity">
+        <div class="api-card-header">
+          <div class="api-card-title">
+            <span class="api-badge api-badge-perplexity">Perplexity</span>
+            <span class="api-card-name">Sonar Search API</span>
+          </div>
+          <label class="api-toggle" aria-label="Enable Perplexity">
+            <input type="checkbox" id="perplexity-enabled">
+            <span class="api-toggle-slider"></span>
+          </label>
+        </div>
+        <div class="api-key-row">
+          <input type="password" id="perplexity-key" class="api-key-input" placeholder="pplx-…" autocomplete="off" spellcheck="false">
+          <button class="btn btn-ghost btn-sm" id="perplexity-key-show" type="button">Show</button>
+        </div>
+        <p class="api-card-hint">Powers the web search step in the research workflow · Requires a Perplexity API key · Saved to the websearch MCP server on apply</p>
+      </div>
 
       <div class="api-card" id="api-card-huggingface">
         <div class="api-card-header">
@@ -3490,11 +3509,12 @@ $('orch-save-btn').addEventListener('click', async () => {
 async function loadExternalApis() {
   try {
     const data = await fetch('/api/external-apis').then(r => r.json());
-    const ant = data.anthropic || {};
-    const oai = data.openai    || {};
     const hf  = data.huggingface || {};
+    const px  = data.perplexity  || {};
     $('huggingface-enabled').checked  = hf.enabled  || false;
     $('huggingface-key').placeholder  = hf.has_key  ? '••••••••••••  (saved — leave blank to keep)' : 'hf_…';
+    $('perplexity-enabled').checked   = px.enabled  || false;
+    $('perplexity-key').placeholder   = px.has_key  ? '••••••••••••  (saved — leave blank to keep)' : 'pplx-…';
   } catch(e) { console.warn('external apis:', e); }
 }
 
@@ -3512,12 +3532,15 @@ $('ext-api-save-btn').addEventListener('click', async () => {
       body: JSON.stringify({
         huggingface_key:     $('huggingface-key').value,
         huggingface_enabled: $('huggingface-enabled').checked,
+        perplexity_key:      $('perplexity-key').value,
+        perplexity_enabled:  $('perplexity-enabled').checked,
       }),
     });
     const d = await r.json();
     if (d.ok) {
       flashExtStatus('✓ Saved', 'ok');
       $('huggingface-key').value = '';
+      $('perplexity-key').value  = '';
       await Promise.all([loadExternalApis(), loadModels()]);
       loadHFAvailability();
     } else {
@@ -3527,7 +3550,7 @@ $('ext-api-save-btn').addEventListener('click', async () => {
 });
 
 // Show/hide toggles for API key inputs
-[['huggingface-key-show', 'huggingface-key']].forEach(([btnId, inputId]) => {
+[['huggingface-key-show', 'huggingface-key'], ['perplexity-key-show', 'perplexity-key']].forEach(([btnId, inputId]) => {
   $(btnId)?.addEventListener('click', () => {
     const inp = $(inputId);
     const showing = inp.type === 'text';
